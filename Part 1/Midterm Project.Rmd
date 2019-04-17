@@ -9,160 +9,25 @@ output:
 
 Read in data.
 ```{r}
-#rm(list = ls())
+rm(list = ls())
 library(tidyverse)
 library(gridExtra)
 library(grid)
 library(knitr)
 library(xtable)
-library(plyr)
-library(MatchIt)
-library(tableone)
 library(optmatch)
 library(RItools)
-setwd('/Users/darshanpatel/Desktop/NSDUH')
-df_2010 = read.table(file = 'NSDUH_2010_Tab.tsv', sep = '\t', header = TRUE)
-df_2011 = read.table(file = 'NSDUH_2011_Tab.tsv', sep = '\t', header = TRUE)
-df_2012 = read.table(file = 'NSDUH_2012_Tab.tsv', sep = '\t', header = TRUE)
-df_2013 = read.table(file = 'NSDUH_2013_Tab.tsv', sep = '\t', header = TRUE)
-df_2014 = read.table(file = 'NSDUH_2014_Tab.tsv', sep = '\t', header = TRUE)
-df_2015 = read.table(file = 'NSDUH_2015_Tab.tsv', sep = '\t', header = TRUE)
-df_2016 = read.table(file = 'NSDUH_2016_Tab.tsv', sep = '\t', header = TRUE)
+library(scales)
+library(RColorBrewer)
+library(plyr)
 df_2017 = read.table(file = 'NSDUH_2017_Tab.tsv', sep = '\t', header = TRUE)
 ```
 
 Write functions to extract certain types of data. Use `QUESTID2` as an ID for each dataset.
 
 (a) Demographics Data 
-
-
 ```{r}
-dem_pre2014 = function(df){
-  dem_df = df %>% select("ID" = QUESTID2, #ID 
-                   "Gender" = IRSEX, # Gender (M/F)
-                   "Age" = CATAG7, # Age category (1-7, 12-13, 14-15, 16-17, 18-20, 21-25, 26-34, 35+)
-                   "Marital" = IRMARIT, # Marital Status (1/2/3/4/99 - Married, widowed, divorced or separated, never been married, underage)
-                   "Health" = HEALTH, # Overall health (1-5, Excellent, Very good, good, fair, poor)
-                   "Education" = IREDUC2, # Education (1-11, Fifth grade of less, sixth - 12th, freshmen/13th year, sophomore or junior / 14th or 15th year, senior / 16th year or higher)
-                   "Race" = NEWRACE2, # Race (1-7, White/African American/ Native American/ Native Hawaiian or other Pacific Island/ Asian / More than one race / Hispanic)
-                   "College" = COLLENR2, # College enrollment (./1/2/3/4/5, Unkonwn, Full time, Part time, Not enrolled , Enrolled with no info, Outside of age 18-22)
-                   "Employment" = EMPSTATY, # Employment Status (1/2/3/4/99, Full time, part time, unemployed, other, underage)
-                   "PopDen" = PDEN00 # Population Density (1/2/3, !mil or more, 1mil or less, unknown)
-  ) %>%
-    mutate(Gender = recode(Gender, `1` = "M", `2` = "F", .default = NULL),
-           Age = recode_factor(Age, `1` = "12-13", `2` = "14-15", `3` = "16-17", 
-                               `4` = "18-20", `5` = "21-25", `6` = "26-34", 
-                               `7` = "35+", .ordered = TRUE, .default = NULL),
-           Marital = recode(Marital, `1` = "Married", `2` = "Widowed", `3` = "Divorced/Separated",
-                            `4` = "Unmarried", `99` = "Underage"),
-           Health = recode_factor(Health, `5` = "Poor", `4` = "Fair", `3` = "Good",
-                                  `2` = "Very Good", `1` = "Excellent", 
-                                    .default = "Unknown", .ordered = TRUE),
-           Education = recode_factor(Education, `1` = "Fifth or less", `2` = "Sixth", `3` = "Seventh",
-                                     `4` = "Eighth", `5` = "Ninth", `6` = "Tenth", `7` = "Eleventh",
-                                     `8` = "Twelfth", `9` = "Freshman", `10` = "Soph/Junior", 
-                                     `11` = "Senior or higher", .default = NULL, .ordered = TRUE),
-           Race = recode(Race, `1` = "White (Nonhispanic)", `2` = "Black", `3` = "Native American",
-                         `4` = "Native Hawaiian", `5` = "Asian", `6` = "Multiracial",
-                         `7` = "Hispanic", .default = NULL),
-           College = recode(College, `1` = "Full time", 
-                            `2` = "Part time", `3` = "Not enrolled",
-                            `4` = "Full time", `5` = "Underage", 
-                            .default = "Not enrolled", .missing = "Unknown"),
-           Employment = recode(Employment, `1` = "Full time", `2` = "Part time", `3` = "Unemployed",
-                               `4` = "Other", `99` = "Underage", .default = NULL),
-           PopDen = recode(PopDen, `1` = "Large", `2` = "Small", `3` = "Unknown")
-           )
-  return(dem_df)
-}
-```
-
-```{r}
-dem_for2014 = function(df){
-  dem_df = df %>% select("ID" = QUESTID2, #ID 
-                   "Gender" = IRSEX, # Gender (M/F)
-                   "Age" = CATAG7, # Age category (1-7, 12-13, 14-15, 16-17, 18-20, 21-25, 26-34, 35+)
-                   "Marital" = IRMARIT, # Marital Status (1/2/3/4/99 - Married, widowed, divorced or separated, never been married, underage)
-                   "Health" = HEALTH, # Overall health (1-5, Excellent, Very good, good, fair, poor)
-                   "Education" = IREDUC2, # Education (1-11, Fifth grade of less, sixth - 12th, freshmen/13th year, sophomore or junior / 14th or 15th year, senior / 16th year or higher)
-                   "Race" = NEWRACE2, # Race (1-7, White/African American/ Native American/ Native Hawaiian or other Pacific Island/ Asian / More than one race / Hispanic)
-                   "College" = COLLENR2, # College enrollment (./1/2/3/4/5, Unkonwn, Full time, Part time, Not enrolled , Enrolled with no info, Outside of age 18-22)
-                   "Employment" = EMPSTATY, # Employment Status (1/2/3/4/99, Full time, part time, unemployed, other, underage)
-                   "PopDen" = PDEN10 # Population Density (1/2/3, !mil or more, 1mil or less, unknown)
-  ) %>%
-    mutate(Gender = recode(Gender, `1` = "M", `2` = "F", .default = NULL),
-           Age = recode_factor(Age, `1` = "12-13", `2` = "14-15", `3` = "16-17", 
-                               `4` = "18-20", `5` = "21-25", `6` = "26-34", 
-                               `7` = "35+", .ordered = TRUE, .default = NULL),
-           Marital = recode(Marital, `1` = "Married", `2` = "Widowed", `3` = "Divorced/Separated",
-                            `4` = "Unmarried", `99` = "Underage"),
-           Health = recode_factor(Health, `5` = "Poor", `4` = "Fair", `3` = "Good",
-                                  `2` = "Very Good", `1` = "Excellent", 
-                                    .default = "Unknown", .ordered = TRUE),
-           Education = recode_factor(Education, `1` = "Fifth or less", `2` = "Sixth", `3` = "Seventh",
-                                     `4` = "Eighth", `5` = "Ninth", `6` = "Tenth", `7` = "Eleventh",
-                                     `8` = "Twelfth", `9` = "Freshman", `10` = "Soph/Junior", 
-                                     `11` = "Senior or higher", .default = NULL, .ordered = TRUE),
-           Race = recode(Race, `1` = "White (Nonhispanic)", `2` = "Black", `3` = "Native American",
-                         `4` = "Native Hawaiian", `5` = "Asian", `6` = "Multiracial",
-                         `7` = "Hispanic", .default = NULL),
-           College = recode(College, `1` = "Full time", 
-                            `2` = "Part time", `3` = "Not enrolled",
-                            `4` = "Full time", `5` = "Underage", 
-                            .default = "Not enrolled", .missing = "Unknown"),
-           Employment = recode(Employment, `1` = "Full time", `2` = "Part time", `3` = "Unemployed",
-                               `4` = "Other", `99` = "Underage", .default = NULL),
-           PopDen = recode(PopDen, `1` = "Large", `2` = "Small", `3` = "Unknown")
-           )
-  return(dem_df)
-}
-```
-
-
-```{r}
-dem_for2015 = function(df){
-  dem_df = df %>% select("ID" = QUESTID2, #ID 
-                   "Gender" = IRSEX, # Gender (M/F)
-                   "Age" = CATAG7, # Age category (1-7, 12-13, 14-15, 16-17, 18-20, 21-25, 26-34, 35+)
-                   "Marital" = IRMARITSTAT, # Marital Status (1/2/3/4/99 - Married, widowed, divorced or separated, never been married, underage)
-                   "Health" = HEALTH, # Overall health (1-5, Excellent, Very good, good, fair, poor)
-                   "Education" = EDUGRDNOW2, # Education (1-11, Fifth grade of less, sixth - 12th, freshmen/13th year, sophomore or junior / 14th or 15th year, senior / 16th year or higher)
-                   "Race" = NEWRACE2, # Race (1-7, White/African American/ Native American/ Native Hawaiian or other Pacific Island/ Asian / More than one race / Hispanic)
-                   "College" = COLLENRST, # College enrollment (./1/2/3/4/5, Unkonwn, Full time, Part time, Not enrolled , Enrolled with no info, Outside of age 18-22)
-                   "Employment" = IRWRKSTAT, # Employment Status (1/2/3/4/99, Full time, part time, unemployed, other, underage)
-                   "PopDen" = PDEN10 # Population Density (1/2/3, !mil or more, 1mil or less, unknown)
-  ) %>%
-    mutate(Gender = recode(Gender, `1` = "M", `2` = "F", .default = NULL),
-           Age = recode_factor(Age, `1` = "12-13", `2` = "14-15", `3` = "16-17", 
-                               `4` = "18-20", `5` = "21-25", `6` = "26-34", 
-                               `7` = "35+", .ordered = TRUE, .default = NULL),
-           Marital = recode(Marital, `1` = "Married", `2` = "Widowed", `3` = "Divorced/Separated",
-                            `4` = "Unmarried", `99` = "Underage"),
-           Health = recode_factor(Health, `5` = "Poor", `4` = "Fair", `3` = "Good",
-                                  `2` = "Very Good", `1` = "Excellent", 
-                                    .default = "Unknown", .ordered = TRUE),
-           Education = recode_factor(Education, `1` = "Fifth or less", `2` = "Sixth", `3` = "Seventh",
-                                     `4` = "Eighth", `5` = "Ninth", `6` = "Tenth", `7` = "Eleventh",
-                                     `8` = "Twelfth", `9` = "Freshman", `10` = "Soph/Junior", 
-                                     `11` = "Senior or higher", .default = NULL, .ordered = TRUE),
-           Race = recode(Race, `1` = "White (Nonhispanic)", `2` = "Black", `3` = "Native American",
-                         `4` = "Native Hawaiian", `5` = "Asian", `6` = "Multiracial",
-                         `7` = "Hispanic", .default = NULL),
-           College = recode(College, `1` = "Full time", 
-                            `2` = "Part time", `3` = "Not enrolled",
-                            `4` = "Full time", `5` = "Underage", 
-                            .default = "Not enrolled", .missing = "Unknown"),
-           Employment = recode(Employment, `1` = "Full time", `2` = "Part time", `3` = "Unemployed",
-                               `4` = "Other", `99` = "Underage", .default = NULL),
-           PopDen = recode(PopDen, `1` = "Large", `2` = "Small", `3` = "Unknown")
-           )
-  return(dem_df)
-}
-```
-
-
-```{r}
-dem_post2016 = function(df){
+read_dem = function(df){
   dem_df = df %>% select("ID" = QUESTID2, #ID 
                    "Gender" = IRSEX, # Gender (M/F)
                    "Age" = CATAG7, # Age category (1-7, 12-13, 14-15, 16-17, 18-20, 21-25, 26-34, 35+)
@@ -202,8 +67,7 @@ dem_post2016 = function(df){
 }
 ```
 
-
-(b) Drug Data - for 2010 - 2014, for 2015-2017 check hallucinogens? 
+(b) Drug Data
 Get data on: ever done it? age when first done? last time since it was done? how many times in the past 30 days?
 Coding for numbers: 
 - 1/2 - Yes/No
@@ -214,61 +78,8 @@ Coding for numbers:
 - 1/2/3/4/91 - Within last 30 days, within last year, within 3 years, more than 3 years, never used
 - 1-30/91/93 - days or never used or never used in past 30 days 
 ```{r}
-# Read in drug info for datasets before 2015
-read_drugs_pre2015 = function(df){
-  drug_df = df %>% select("ID" = QUESTID2, # ID
-                          "Cigarette" = CIGEVER, # Ever smoked a cigarette (1/2)
-                          "CigaretteFirstAge" = CIGTRY, # Age when first smoked a cigarette (a-b/991)
-                          "CigaretteLastUse" = CIGREC, # Time since last smoked (1/2/3/4/91)
-                          "CigaretteLast30Days" = CIG30USE, # How many days smoked cigarette in past 30 days (0-30/91/93)
-                          
-                          "Marijuana" = MJEVER, # Ever used marijuana (1/2)
-                          "MarijuanaFirstAge" = MJAGE, # Age when first used mj/hashish (a-b/991)
-                          "MarijuanaLastUse" = MJREC, # Time since last used mj or hashish (1/2/3/91)
-                          "MarijuanaLastYear" = MRDAYPYR, # Number of days used mj/hashish in past 12 months (0-366/991/993) 
-                          
-                          "Cocaine" = COCEVER, # Ever used cocaine (1/2)
-                          "CocaineFirstAge" = COCAGE, # Age when first used cocaine (a-b/991)
-                          "CocaineLastUse" = COCREC, # Time since last used cocaine (1/2/3/91)
-                          "CocaineLastYear" = CCDAYPYR, # Number of days used cocaine past 12 months (0-366/991/993)
-                                 
-                          "Crack" = CRKEVER, # Ever used crack (1/2)
-                          "CrackFirstAge" = CRKAGE, # Age when first used crack (a-b/991)
-                          "CrackLastUse" = CRAKREC, # Time since last used crack (1/2/3/91)
-                          "CrackLastYear" = CRDAYPYR, # Number of days used crack in past 12 months (0-366/991/993)
-                          
-                          "LSD" = LSD, # Ever used LSD/"ACID" (1/2/91hallucinogen)
-                          "LSDFirstAge" = LSDAGE, # Age when first used LSD (a-b/991)
-                          "LSDLastUse" = LSDREC, # Time since last used LSD (1/2/3/91)
-
-                          "Ecstasy" = ECSTASY, # Ever used ecstasy (1/2/91hallucinogen)
-                          "EcstasyFirstAge" = ECSAGE, # Age first used ecstasy (a-b/991)
-                          "EcstasyLastUse" = ECSREC # Time since last used ecstasy (1/2/3/91)
-  ) %>%
-    mutate_at(vars(Cigarette, Marijuana, Cocaine, Crack, LSD, Ecstasy),
-              ~recode(., `1` = "Yes", `2` = "No", .default = "Unknown")) %>% 
-    mutate_at(vars(CigaretteFirstAge, MarijuanaFirstAge, 
-                   CocaineFirstAge, CrackFirstAge,
-                   LSDFirstAge, EcstasyFirstAge), 
-              list(~ ifelse(. %in% c(985, 991, 994, 997, 998), "Unknown", .))) %>%
-    mutate_at(vars(CigaretteLastUse, MarijuanaLastUse, 
-               CocaineLastUse, CrackLastUse,
-               LSDLastUse, EcstasyLastUse), 
-          ~recode_factor(., .default = "Never Used",`1` = "Past 30 Days", 
-                         `2` = "Past Year", `3` = "Past 3 Years", 
-                         `4` = "More than 3 Years", .ordered = TRUE)) %>%
-    mutate(CigaretteLast30Days = ifelse(CigaretteLast30Days %in% c(91, 93, 94, 97, 98), 
-                                        "Unknown", CigaretteLast30Days)) %>%
-    mutate_at(vars(MarijuanaLastYear, CocaineLastYear, CrackLastYear), 
-              list(~ ifelse(. %in% c(seq(1, 365, 1), 991), ., "Unknown")))
-  return(drug_df)
-}
-```
-
-```{r}
-# Read in drug info for datasets for 2015 and after 
-# Changes in hallucinogen, ecstacy, methamphetamine
-read_drugs_post2015 = function(df){
+# Read in drug info
+read_drugs = function(df){
   drug_df = df %>% select("ID" = QUESTID2, # ID
                           "Cigarette" = CIGEVER, # Ever smoked a cigarette (1/2)
                           "CigaretteFirstAge" = CIGTRY, # Age when first smoked a cigarette (a-b/991)
@@ -278,47 +89,26 @@ read_drugs_post2015 = function(df){
                           "Marijuana" = MJEVER, # Ever used marijuana (1/2)
                           "MarijuanaFirstAge" = MJAGE, # Age when first used mj/hashish (a-b/991)
                           "MarijuanaLastUse" = MJREC, # Time since last used mj or hashish (1/2/3/91)
-                          "MarijuanaLastYear" = MRDAYPYR, # Number of days used mj/hashish in past 12 months (0-365/991/993) 
-                          
-                          "Cocaine" = COCEVER, # Ever used cocaine (1/2)
-                          "CocaineFirstAge" = COCAGE, # Age when first used cocaine (a-b/991)
-                          "CocaineLastUse" = COCREC, # Time since last used cocaine (1/2/3/91)
-                          "CocaineLastYear" = CCDAYPYR, # Number of days used cocaine past 12 months (0-365/991/993)
-                                 
-                          "Crack" = CRKEVER, # Ever used crack (1/2)
-                          "CrackFirstAge" = CRKAGE, # Age when first used crack (a-b/991)
-                          "CrackLastUse" = CRAKREC, # Time since last used crack (1/2/3/91)
-                          "CrackLastYear" = CRDAYPYR, # Nu,ber of days used crack in past 12 months (0-365/991/993)
+                          "MarijuanaLastYear" = MRDAYPYR # Number of days used mj/hashish in past 12 months (0-365/991/993) 
 
-                          "LSD" = LSD, # Ever used LSD/"ACID" (1/2/91hallucinogen)
-                          "LSDFirstAge" = LSDAGE, # Age when first used LSD (a-b/991)
-                          "LSDLastUse" = LSDREC, # Time since last used LSD (1/2/3/91)
-                                 
-                          "Ecstasy" = ECSTMOLLY, # Ever used ecstasy (1/2/91hallucinogen)
-                          "EcstasyFirstAge" = ECSTMOAGE, # Age first used ecstasy (a-b/991)
-                          "EcstasyLastUse" = ECSTMOREC # Time since last used ecstasy (1/2/3/91)
   ) %>%
-    mutate_at(vars(Cigarette, Marijuana, Cocaine, Crack, LSD, Ecstasy),
+    mutate_at(vars(Cigarette, Marijuana),
               ~recode(., `1` = "Yes", `2` = "No", .default = "Unknown")) %>% 
-    mutate_at(vars(CigaretteFirstAge, MarijuanaFirstAge, 
-                   CocaineFirstAge, CrackFirstAge,
-                   LSDFirstAge, EcstasyFirstAge), 
+    mutate_at(vars(CigaretteFirstAge, MarijuanaFirstAge), 
               list(~ ifelse(. %in% c(985, 991, 994, 997, 998), "Unknown", .))) %>%
-    mutate_at(vars(CigaretteLastUse, MarijuanaLastUse, 
-               CocaineLastUse, CrackLastUse,
-               LSDLastUse, EcstasyLastUse), 
+    mutate_at(vars(CigaretteLastUse, MarijuanaLastUse), 
           ~recode_factor(., .default = "Never Used",`1` = "Past 30 Days", 
                          `2` = "Past Year", `3` = "Past 3 Years", 
                          `4` = "More than 3 Years", .ordered = TRUE)) %>%
     mutate(CigaretteLast30Days = ifelse(CigaretteLast30Days %in% c(91, 93, 94, 97, 98), 
                                         "Unknown", CigaretteLast30Days)) %>%
-    mutate_at(vars(MarijuanaLastYear, CocaineLastYear, CrackLastYear), 
+    mutate_at(vars(MarijuanaLastYear), 
               list(~ ifelse(. %in% c(seq(1, 365, 1), 991), ., "Unknown")))
   return(drug_df)
 }
 ```
 
-(c) Criminal Data - works on all dataset, check codebook
+(c) Criminal Data
 Coding for numbers: 
 - 1/2 - Yes/No
 - 0/1/2/3 - 0 times, 1 time, 2 times, 3 or more times
@@ -326,7 +116,6 @@ Coding for numbers:
 # Criminal info
 read_crim = function(df){
   crim_df = df %>% select("ID" = QUESTID2, # ID
-                          #BOOKED, # Ever arrested and booked for breaking the law in the past 12 months (1/2)
                           "TimesArrested" = NOBOOKY2, # Number of times arrested and booked for breaking the law in the past 12 months (0/1/2/3+)
                           "MVTheft" = BKMVTHFT, # Ever arrested and booked for motor vehicle theft in past 12 months (1/2)
                           "Theft" = BKLARCNY, # Ever arrested and booked for larceny/theft in past 12 months (1/2)
@@ -353,7 +142,7 @@ read_crim = function(df){
 }
 ```
 
-(d) Mental Health Behaviors - works on all datasets, check cookbook
+(d) Emotional Stress Indicators
 Coding for numbers:
 - 1/2/3/4/5 - all of the time, most of the time, some of the time, a little of the time, none of the time
 - 1/2 - Yes/No
@@ -362,48 +151,19 @@ Coding for numbers:
 - 1/2/3 - Every day, most days, only one or two days a week
 - 0-365 - number of days 
 ```{r}
-read_mh = function(df){
+read_estress = function(df){
   mh_df = df %>% select("ID" = QUESTID2, # ID
                         "Nervous30" = DSTNRV30, # How often did you feel nervous in past 30 days (1/2/3/4/5)
                         "Hopeless30" = DSTHOP30, # How often did you feel hopeless in past 30 days (1/2/3/4/5)
-                        "RestlessFidgety30" = DSTRST30, # How often did you feel restlessness/fidgety in past 30 days (1/2/3/4/5)
-                        "NoCheers30" = DSTCHR30, # How often did you felt sad nothing could cheer you up in the past 30 days (1/2/3/4/5)
-                        "Effort30" = DSTEFF30, # How often did you feel everything was an effort in the past 30 days (1/2/3/4/5)
                         "Worthless30" = DSTNGD30, # How often did you feel down on yourself, no good or worthless in the past days (1/2/3/4/5)
                         
                         "WorstStressedMonth" = DSTWORST, # Was there a month in the past 12 month months where you felt more depressed/ anxious or emotionally stressed than the last 30 days (1/2)
                         "NervousWorst" = DSTNRV12, # In that one month, how often did you feel nervous (1/2/3/4/5)
                         "HopelessWorst" = DSTHOP12, # In that one month, how often did you feel hopeless (1/2/3/4/5)
-                        "RestlessFidgetyWorst" = DSTRST12, # In that one month, how often did you feel restless or fidgety (1/2/3/4/5)
-                        "NoCheersWorst" = DSTCHR12, # In that one month, how often did you feel so sad or depressed that nothing could cheer you up (1/2/3/4/5)
-                        "EffortWorst" = DSTEFF12, # In that one month, how often did you feel that everything was an effort (1/2/3/4/5)
-                        "WorthlessWorst" = DSTNGD12, # In that one month, how often did you feel down on yourself, no good or worthless (1/2/3/4/5)
-                        
-                        # During the one month when you emotions, nerves or mental health interfered most with your daily activities..., 
-                        #IMPREMEM, # How much difficulty did you have remembering to do things you need to do (1/2/3/4)
-                        #IMPCONCN, # How much difficulty did you have concentrating on doing something important when other things were going on around you (1/2/3/4)
-                        #IMPGOUT, # How much difficulty did you have going out of the house and getting around on your own (1/2/3/4)
-                        #IMPGOUTM, # Did problems with your emotions/nerves/mental health keep you from leaving the house on your own (1/2)
-                        #IMPPEOP, # How much difficulty did you have dealing with people you did not know well (1/2/3/4)
-                        #IMPPEOPM, # Did problems with your emotions/nerves/mental health keep you from dealing with people you did not know well (1/2)
-                        #IMPSOC, # How much difficulty did you have participating in social activities (1/2/3/4)
-                        #IMPSOCM, # Did problems with your emotions/nerves/mental health keep you from participating in social activities (1/2)
-                        #IMPHHLD, # How much difficulty did you have taking care of household responsibilities (1/2/3/4)
-                        #IMPHHLDM, # Did problems with your emotions/mental health keep you from taking care of household responsibilities (1/2)
-                        #IMPRESP, # How much difficulty did you have taking care of your daily responsibilities at work / school (1/2/3/4)
-                        #IMPRESPM, # Did problems with your emotions/nerves/mental health keep you from working or going to school (1/2)
-                        #IMPWORK, # How much difficulty did you have getting your daily work done as quickly as needed (1/2/3/4)
-                        #IMPWEEKS, # How many weeks did you have these difficulties because of your emotions, nerves or mental health in the past 12 months (1-52)
-                        #IMPDYFRQ, # In that/those week(s), how many days did you have these difficulties (1/2/3)
-                        #IMPYDAYS, # How many days in the last 365 days were you unable to work or carry out your normal activities because of your emotions, nerves or mental health (0-365)
-                        "SuicideThink" = SUICTHNK, # Did you seriously think about trying to kill yourself in the past 12 months (1/2)
-                        "SuicidePlan" = SUICPLAN, # Did you make any plans to kill yourself in the past 12 months (1/2)
-                        "SuicideAttempt" = SUICTRY # Did you try to kill yourself in the past 12 months (1/2)
+                        "WorthlessWorst" = DSTNGD12 # In that one month, how often did you feel down on yourself, no good or worthless (1/2/3/4/5)
   ) %>%
-    mutate_at(vars(Nervous30, Hopeless30, RestlessFidgety30, 
-                   NoCheers30, Effort30, Worthless30,
-                   NervousWorst, HopelessWorst, RestlessFidgetyWorst,
-                   NoCheersWorst, EffortWorst, WorthlessWorst),
+    mutate_at(vars(Nervous30, Hopeless30, Worthless30,
+                   NervousWorst, HopelessWorst, WorthlessWorst),
               ~recode_factor(., 
                              `5` = "None of the time", 
                              `4` = "A little of the time",
@@ -411,102 +171,18 @@ read_mh = function(df){
                              `2` = "Most of the time",
                              `1` = "All of the time", 
                              .default = NULL, 
-                             .ordered = TRUE)) %>% 
-    mutate_at(vars(WorstStressedMonth, SuicideThink, SuicidePlan, SuicideAttempt),
-              ~recode(., `1` = "Yes", `2` = "No", .default = NULL))
-    
+                             .ordered = TRUE)) 
   return(mh_df)
 }
 ```
 
-(e) Adult Depression - works on all datasets, check codebook
-Coding for numbers: 
-- 1/2 - Yes/No
-- 1/2/3/4h - Less than 1 hr, at least 1 hr but less than 3 hrs, at least 3 hrs but less than 5 hrs, more than 5 hrs 
-- 1/2/3/4s - mild/moderate/severe/very severe
-- 1/2/3/4c - often/sometimes/rarely/never
-- 1-93 - age
-- 0-20/21/22/23/24/25/26/27 - 0-20 lbs, 21-25 lbs, 26-30 lbs, 31-35 lbs, 36-40 lbs, 41-45 lbs, 46-50 lbs, 51 or more lbs
-- 1/2/3/4/5 - not at all, a little, som, a lot, extremely
-- 1-84 - age
-- 1-1000 - number of times
-- 0-10 - no interference, mild/mild/mild, moderate/moderate/moderate, severe/severe/severe, very severe interference
-- 0-365 - number of days
-
-```{r}
-read_dp = function(df){
-  dp_df = df %>% select("ID" = QUESTID2, # ID 
-                        "Sad" = ADDPREV, # How you ever in your life had a period of time lasting several days or longer when most of the day you felt sad, empty or depressed (1/2)
-                        "DiscoLife" = ADDSCEV, # How you ever had a period of time lasting several days or longer when most of the day you were very discouraged about how thingns were going in your life (1/2)
-                        "LostInterest" = ADLOSEV, # Have you ever had a period of time lasting several days or longer when you lost interest in most things you usually enjoy like work, hobbies and personal relationships (1/2)
-                        "DiscoWorst" = ADDPDISC, # During times when you felt sad, empty or depressed most of the day, did you ever feel discouraged about how things were going in your life (1/2)
-                        "LostInterestWorst" = ADDPLSIN, # During the times when you felt sad, empty or depressed, did you ever lose interest in most things like work, hobbies and other things you usually enjoy (1/2)
-                        "HomeManage" = ADPSHMGT, # How much did feelings interfere with home management? (0-9, no interference to very severe interference)
-                        "Work" = ADPSWORK, # How much did feelings interfere with ability to work (0-9 scale)
-                        "Relationships" = ADPSRELS, # How much did feelings interfere with relationships? (0-9 scale)
-                        "SocLife" = ADPSSOC, # How much did feelings interfere with social life? (0-9 scale)
-                        "DailyAct" = ADPSDAYS # How many days unable to work or carry out daily acitivites (0-365)
-                        
-  ) %>% 
-    mutate_at(vars(Sad, DiscoLife, LostInterest, DiscoWorst, LostInterestWorst), 
-              ~recode(., `1` = "Yes", `2` = "No", .default = NULL)) %>%
-    mutate_at(vars(HomeManage, Work, Relationships, SocLife, DailyAct),
-              ~recode_factor(., `0` = "No interference", `1` = "Mild", `2` = "Mild", `3` = "Mild",
-                             `4` = "Moderate", `5` = "Moderate", `6` = "Moderate",
-                             `7` = "Severe", `8` = "Severe", `9` = "Severe", 
-                             `10` = "Very serious interference", .default = NULL))
-  return(dp_df)
-}
-```
 
 Read in all data.
 ```{r, warning = FALSE}
-dem_2010 = dem_pre2014(df_2010)
-dem_2011 = dem_pre2014(df_2011)
-dem_2012 = dem_pre2014(df_2012)
-dem_2013 = dem_pre2014(df_2013)
-dem_2014 = dem_for2014(df_2014)
-dem_2015 = dem_for2015(df_2015)
-dem_2016 = dem_post2016(df_2016)
-dem_2017 = dem_post2016(df_2017)
-
-drugs_2010 = read_drugs_pre2015(df_2010)
-drugs_2011 = read_drugs_pre2015(df_2011)
-drugs_2012 = read_drugs_pre2015(df_2012)
-drugs_2013 = read_drugs_pre2015(df_2013)
-drugs_2014 = read_drugs_pre2015(df_2014)
-drugs_2015 = read_drugs_post2015(df_2015)
-drugs_2016 = read_drugs_post2015(df_2016)
-drugs_2017 = read_drugs_post2015(df_2017)
-
-crim_2010 = read_crim(df_2010)
-crim_2011 = read_crim(df_2011)
-crim_2012 = read_crim(df_2012)
-crim_2013 = read_crim(df_2013)
-crim_2014 = read_crim(df_2014)
-crim_2015 = read_crim(df_2015)
-crim_2016 = read_crim(df_2016)
+dem_2017 = read_dem(df_2017)
+drugs_2017 = read_drugs(df_2017)
 crim_2017 = read_crim(df_2017)
-
-mh_2010 = read_mh(df_2010)
-mh_2011 = read_mh(df_2011)
-mh_2012 = read_mh(df_2012)
-mh_2013 = read_mh(df_2013)
-mh_2014 = read_mh(df_2014)
-mh_2015 = read_mh(df_2015)
-mh_2016 = read_mh(df_2016)
-mh_2017 = read_mh(df_2017)
-
-dp_2010 = read_dp(df_2010)
-dp_2011 = read_dp(df_2011)
-dp_2012 = read_dp(df_2012)
-dp_2013 = read_dp(df_2013)
-dp_2014 = read_dp(df_2014)
-dp_2015 = read_dp(df_2015)
-dp_2016 = read_dp(df_2016)
-dp_2017 = read_dp(df_2017)
-
-rm(df_2010, df_2011, df_2012, df_2013, df_2014, df_2015, df_2016, df_2017)
+es_2017 = read_estress(df_2017)
 ```
 
 
@@ -515,9 +191,6 @@ drug_plot = function(df1, df2, drug, ymin, ymax){
   
   num_peops = as.data.frame(rbind(table(df1[[drug]]), table(df2[[drug]])))
   num_peops$No = -num_peops$No
-  num_peops$year = c(2010, 2015)
-  
-  
   plot = num_peops %>%
     gather(yesno, num_people, Yes, No) %>%
     ggplot(aes(x = year, y = num_people, fill = yesno)) + 
@@ -530,9 +203,11 @@ drug_plot = function(df1, df2, drug, ymin, ymax){
     ggtitle(drug) + coord_flip()
   return(plot) 
 }
+```
 
+Function to put plots together with shared legends
+```{r}
 grid_arrange_shared_legend <- function(..., ncol = length(list(...)), nrow = 1, position = c("bottom", "right")) {
-
   plots <- list(...)
   position <- match.arg(position)
   g <- ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
@@ -541,7 +216,6 @@ grid_arrange_shared_legend <- function(..., ncol = length(list(...)), nrow = 1, 
   lwidth <- sum(legend$width)
   gl <- lapply(plots, function(x) x + theme(legend.position="none"))
   gl <- c(gl, ncol = ncol, nrow = nrow)
-
   combined <- switch(position,
                      "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
                                             legend,
@@ -551,128 +225,137 @@ grid_arrange_shared_legend <- function(..., ncol = length(list(...)), nrow = 1, 
                                            legend,
                                            ncol = 2,
                                            widths = unit.c(unit(1, "npc") - lwidth, lwidth)))
-
   grid.newpage()
   grid.draw(combined)
-
   # return gtable invisibly
   invisible(combined)
-
 }
 ```
 
 Total Number of Drug Users
 ```{r}
-drug_users = as.data.frame(cbind(rbind(table(drugs_2010$Cigarette)[1], table(drugs_2015$Marijuana)[1]),
-                                 rbind(table(drugs_2010$Cigarette)[2], table(drugs_2015$Marijuana)[3])))
-colnames(drug_users) = c("Not Smoke", "Smoke")
-rownames(drug_users) = c("Cigarette", "Marijuana")
-kable(drug_users)
-
-#print(xtable(drug_users, type = "latex", 
-             #caption = "Figure 1: Usage of Cigarette and Marijuana"), 
-      #file = "drug_users.tex")
-
-?xtable
-
-rbind(drugs_2010 %>% mutate(year = 2010) %>% select(Cigarette, year),
-      drugs_2015 %>% mutate(year = 2015) %>% select(Cigarette, year)) 
-
-cig_count = cbind("Year 2010" = count(drugs_2010$Cigarette), 
-                  "Year 2015" = count(drugs_2015$Cigarette))
-
-cig_count = cig_count %>% 
-  mutate("Group" = `Year 2010.x`,
-         "Y2010" = `Year 2010.freq`,
-         "Y2015" = `Year 2015.freq`) %>% 
-  select(Group, "Y2010", "Y2015") %>%
-  mutate("TotalGroup" = select(., contains("Y")) %>% rowSums())
-
-cig_count = rbind(cig_count,
-                  c("TotalYear", colSums(cig_count[2:4])))
-
-mar_count = cbind("Year 2010" = count(drugs_2010$Marijuana), 
-                  "Year 2015" = count(drugs_2015$Marijuana))
-
-mar_count = mar_count %>% 
-  mutate("Group" = `Year 2010.x`,
-         "Y2010" = `Year 2010.freq`,
-         "Y2015" = `Year 2015.freq`) %>% 
-  select(Group, "Y2010", "Y2015") %>% filter(Group %in% c("Yes", "No")) %>%
-  mutate("TotalGroup" = select(., contains("Y")) %>% rowSums())
-
-mar_count = rbind(mar_count,
-                  c("TotalYear", colSums(mar_count[2:4])))
-mar_count
-
-print(xtable(cig_count, type = "latex", 
-             caption = "Figure 1: Usage of Cigarette"), 
-      file = "cig_users.tex")
-print(xtable(mar_count, type = "latex",
-             caption = "Figure 2: Usage of Marijuana"),
-      file = "mar_users.tex")
+x = drugs_2017 %>% select(Cigarette) %>% count()
+colnames(x) = c("Yes/No", "Cigarette")
+y = drugs_2017 %>% filter(Marijuana %in% c("Yes", "No")) %>% select(Marijuana) %>% count()
+colnames(y) = c("Yes/No", "Marijuana")
+total_df = merge(x,y)
+total_df
+print(xtable(total_df, type = "latex", caption = "Figure 1: Usage of Cigarette and Marijuana"), file = "cig_mar_users.tex")
 ```
 
-# Covariate Plots - Gender, Age, Race, Employment vs Cigarette, Marijuana
+Covariate Plots - Gender, Age, Race, Employment vs Cigarette, Marijuana
 ```{r}
-cig_cov_2010 = inner_join(dem_2010, drugs_2010, by = "ID") %>% mutate(year = 2010)
-cig_cov_2015 = inner_join(dem_2015, drugs_2015, by = "ID") %>% mutate(year = 2015)
-cig_cov = rbind(cig_cov_2010, cig_cov_2015)
-
-c1 = cig_cov %>% ggplot(aes(x = Gender, fill = as.factor(Cigarette))) + geom_bar(position = "dodge") + 
-  facet_grid(.~as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
-
-c2 = cig_cov %>% ggplot(aes(x = Age, fill = as.factor(Cigarette))) + geom_bar(position = "dodge") + 
-  facet_grid(.~ as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
-
-c3 = cig_cov %>% ggplot(aes(x = Race, fill = as.factor(Cigarette))) + geom_bar(position = "dodge") + 
-  facet_grid(.~ as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
-
-c4 = cig_cov %>% ggplot(aes(x = Employment, fill = as.factor(Cigarette))) + geom_bar(position = "dodge") + 
-  facet_grid(.~ as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
-
-cig_dem = grid_arrange_shared_legend(c1, c2, c3, c4, ncol = 2, nrow = 2)
-ggsave(filename = "CigaretteDemographics.png", cig_dem, height = 7, width = 7, units = "in")
+cig_cov = inner_join(dem_2017, drugs_2017, by = "ID")
 ```
 
+Plot of Covariates for Cigarettes
 ```{r}
-cig_cov = cig_cov %>% filter(Marijuana %in% c("Yes", "No"))
-c5 = cig_cov %>% ggplot(aes(x = Gender, fill = as.factor(Marijuana))) + geom_bar(position = "dodge") + 
-  facet_grid(.~as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
+j1 = cig_cov %>% select(Gender, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Gender, y = perc, fill = Cigarette)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4),
+                     breaks = seq(-0.4, 0.4, by = 0.2), 
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Gender", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Gender in 2017") + 
+  scale_fill_manual(values = brewer.pal(3, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-c6 = cig_cov %>% ggplot(aes(x = Age, fill = as.factor(Marijuana))) + geom_bar(position = "dodge") + 
-  facet_grid(.~ as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
+j2 = cig_cov %>% select(Age, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Age, y = perc, fill = Cigarette)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4),
+                     breaks = seq(-0.4, 0.4, by = 0.2),
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Age", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Age in 2017") + 
+  scale_fill_manual(values = brewer.pal(3, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-c7 = cig_cov %>% ggplot(aes(x = Race, fill = as.factor(Marijuana))) + geom_bar(position = "dodge") + 
-  facet_grid(.~ as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
+j3 = cig_cov %>% select(Race, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Race, y = perc, fill = Cigarette)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4),
+                     breaks = seq(-0.4, 0.4, by = 0.2), 
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Race", y = "percentage", title = "Percentage Distribution", 
+       subtitle = " by Race in 2017") + 
+  scale_fill_manual(values = brewer.pal(2, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-c8 = cig_cov %>% ggplot(aes(x = Employment, fill = as.factor(Marijuana))) + geom_bar(position = "dodge") + 
-  facet_grid(.~ as.factor(year)) + coord_flip() + 
-  scale_fill_manual(name = "", labels = c("Control", "Treatment"), values = c("cadetblue2", "royalblue1")) + 
-  theme_minimal() + theme(axis.text.x = element_text(angle = -90, hjust = 1))
+j4 = cig_cov %>% select(Employment, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Employment, y = perc, fill = Cigarette)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4), 
+                     breaks = seq(-0.4, 0.4, by = 0.2), 
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Employment", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Employment in 2017") + 
+  scale_fill_manual(values = brewer.pal(2, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-mar = grid_arrange_shared_legend(c5, c6, c7, c8, ncol = 2, nrow = 2)
-ggsave(filename = "MarijuanaDemographics.png", mar, height = 7, width = 7, units = "in")
+j_all = grid_arrange_shared_legend(j1, j2, j3, j4, nrow = 2, ncol = 2)
+ggsave("CigaretteDemographics.png", j_all, height = 7, width = 7, units = "in")
+```
+
+Plot of Covariates for Marijuana
+```{r}
+k1 = cig_cov %>% select(Gender, Marijuana) %>% filter(Marijuana %in% c("Yes", "No")) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Gender, y = perc, fill = Marijuana)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4),
+                     breaks = seq(-0.4, 0.4, by = 0.2), 
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Gender", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Gender in 2017") + 
+  scale_fill_manual(values = brewer.pal(3, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+k2 = cig_cov %>% select(Age, Marijuana) %>% filter(Marijuana %in% c("Yes", "No")) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Age, y = perc, fill = Marijuana)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4),
+                     breaks = seq(-0.4, 0.4, by = 0.2),
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Age", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Age in 2017") + 
+  scale_fill_manual(values = brewer.pal(3, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+k3 = cig_cov %>% select(Race, Marijuana) %>% filter(Marijuana %in% c("Yes", "No")) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Race, y = perc, fill = Marijuana)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4),
+                     breaks = seq(-0.4, 0.4, by = 0.2), 
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Race", y = "percentage", title = "Percentage Distribution", 
+       subtitle = " by Race in 2017") + 
+  scale_fill_manual(values = brewer.pal(2, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+k4 = cig_cov %>% select(Employment, Marijuana) %>% filter(Marijuana %in% c("Yes", "No")) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == "Yes", freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Employment, y = perc, fill = Marijuana)) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.4, 0.4), 
+                     breaks = seq(-0.4, 0.4, by = 0.2), 
+                     labels = c(0.4, 0.2, 0, 0.2, 0.4)) + 
+  labs(x = "Employment", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Employment in 2017") + 
+  scale_fill_manual(values = brewer.pal(2, "Accent")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+k_all = grid_arrange_shared_legend(k1, k2, k3, k4, nrow = 2, ncol = 2)
+ggsave("MarijuanaDemographics.png", k_all, height = 7, width = 7, units = "in")
 ```
 
 
-
-
-## Question 1 - What criminal offenses are linked with individual drugs?
+Join tables for analysis
 ```{r}
 # Join drugs and crimes and extract relevant variables.
 # Remove rows of no response
@@ -681,1693 +364,372 @@ drug_crimes_vars = function(dem_df, drug_df, crime_df){
 }
 
 drug_crime_spec = function(drug){
-  df1 = drug_crimes_vars(dem_2010, drugs_2010 %>% select(ID, drug), crim_2010) %>% mutate(year = 2010)
-  #df2 = drug_crimes_vars(dem_2011, drugs_2011 %>% select(ID, drug), crim_2011) %>% mutate(year = 2011)
-  #df3 = drug_crimes_vars(dem_2012, drugs_2012 %>% select(ID, drug), crim_2012) %>% mutate(year = 2012)
-  #df4 = drug_crimes_vars(dem_2013, drugs_2013 %>% select(ID, drug), crim_2013) %>% mutate(year = 2013)
-  #df5 = drug_crimes_vars(dem_2014, drugs_2014 %>% select(ID, drug), crim_2014) %>% mutate(year = 2014)
-  df6 = drug_crimes_vars(dem_2015, drugs_2015 %>% select(ID, drug), crim_2015) %>% mutate(year = 2015)
-  #df7 = drug_crimes_vars(dem_2016, drugs_2016 %>% select(ID, drug), crim_2016) %>% mutate(year = 2016)
-  #df8 = drug_crimes_vars(dem_2017, drugs_2017 %>% select(ID, drug), crim_2017) %>% mutate(year = 2017)
-  df_overall = rbind(df1, df6) %>% subset(select = -ID)
+  df1 = drug_crimes_vars(dem_2017, drugs_2017 %>% select(ID, drug), crim_2017) %>% mutate(year = 2017)
+  df_overall = df1 %>% subset(select = -ID)
   return(df_overall)
 }
 
-colnames(crimes_2010)
-```
-
-
-```{r}
-crimes = c("Theft", "Arson", "Burglary")
-mh = c("Nervousness", "Hopelessness", "Worthlessness")
-crime_cig_2010 = na.omit(drug_crime_spec("Cigarette") %>% 
-                      filter(Cigarette %in% c("Yes", "No"))) %>% filter(year == 2010)
-crime_cig_2015 = na.omit(drug_crime_spec("Cigarette") %>% 
-                      filter(Cigarette %in% c("Yes", "No"))) %>% filter(year == 2015)
-
-crime_cig_2010$Cigarette = ifelse(crime_cig_2010$Cigarette == "Yes", 1, 0)
-crime_cig_2010[crimes] = crime_cig_2010[crimes] %>% 
-  mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-crime_cig_2015$Cigarette = ifelse(crime_cig_2015$Cigarette == "Yes", 1, 0)
-crime_cig_2015[crimes] = crime_cig_2015[crimes] %>% 
-  mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-
-crime_mar_2010 = na.omit(drug_crime_spec("Marijuana") %>%
-                           filter(Marijuana %in% c("Yes", "No"))) %>% filter(year == 2010)
-crime_mar_2015 = na.omit(drug_crime_spec("Marijuana") %>%
-                           filter(Marijuana %in% c("Yes", "No"))) %>% filter(year == 2015)
-
-crime_mar_2010$Marijuana = ifelse(crime_mar_2010$Marijuana == "Yes", 1, 0)
-crime_mar_2010[crimes] = crime_mar_2010[crimes] %>% 
-  mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-crime_mar_2015$Marijuana = ifelse(crime_mar_2015$Marijuana == "Yes", 1, 0)
-crime_mar_2015[crimes] = crime_mar_2015[crimes] %>% 
-  mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-
-mh_cig_2010 = na.omit(drug_mh_spec("Cigarette") %>% 
-                      filter(Cigarette %in% c("Yes", "No"))) %>% filter(year == 2010)
-mh_cig_2010$Cigarette = ifelse(mh_cig_2010$Cigarette == "Yes", 1, 0)
-mh_cig_2010[worst_feelings] = mh_cig_2010[worst_feelings] %>% 
-  mutate_all(. ~recode(., "None of the time" = 0, 
-                       "A little of the time" = 1, "Some of the time" = 3, 
-                       "Most of the time" = 4, "All of the time" = 5))
-mh_cig_2015 = na.omit(drug_mh_spec("Cigarette") %>% 
-                      filter(Cigarette %in% c("Yes", "No"))) %>% filter(year == 2015)
-mh_cig_2015$Cigarette = ifelse(mh_cig_2015$Cigarette == "Yes", 1, 0)
-mh_cig_2015[worst_feelings] = mh_cig_2015[worst_feelings] %>% 
-  mutate_all(. ~recode(., "None of the time" = 0, 
-                       "A little of the time" = 1, "Some of the time" = 3, 
-                       "Most of the time" = 4, "All of the time" = 5))
-
-mh_mar_2010 = na.omit(drug_mh_spec("Marijuana") %>%
-                           filter(Marijuana %in% c("Yes", "No"))) %>% filter(year == 2010)
-mh_mar_2010$Marijuana = ifelse(mh_mar_2010$Marijuana == "Yes", 1, 0)
-mh_mar_2010[worst_feelings] = mh_mar_2010[worst_feelings] %>% 
-  mutate_all(. ~recode(., "None of the time" = 0, 
-                       "A little of the time" = 1, "Some of the time" = 3, 
-                       "Most of the time" = 4, "All of the time" = 5))
-mh_mar_2015 = na.omit(drug_mh_spec("Marijuana") %>%
-                           filter(Marijuana %in% c("Yes", "No"))) %>% filter(year == 2015)
-mh_mar_2015$Marijuana = ifelse(mh_mar_2015$Marijuana == "Yes", 1, 0)
-mh_mar_2015[worst_feelings] = mh_mar_2015[worst_feelings] %>% 
-  mutate_all(. ~recode(., "None of the time" = 0, 
-                       "A little of the time" = 1, "Some of the time" = 3, 
-                       "Most of the time" = 4, "All of the time" = 5))
-```
-
-
-For crimes - 
-
-Models:
-```{r}
-model1 = glm(Cigarette ~ Gender + Age + Race + Employment + Theft, 
-             data = crime_cig_2010, family = binomial)
-model2 = glm(Cigarette ~ Gender + Age + Race + Employment + Theft,
-             data = crime_cig_2015, family = binomial)
-
-model3 = glm(Cigarette ~ Gender + Age + Race + Employment + Arson,
-             data = crime_cig_2010, family = binomial)
-model4 = glm(Cigarette ~ Gender + Age + Race + Employment + Arson,
-             data = crime_cig_2015, family = binomial)
-
-model5 = glm(Cigarette ~ Gender + Age + Race + Employment + Burglary,
-             data = crime_cig_2010, family = binomial)
-model6 = glm(Cigarette ~ Gender + Age + Race + Employment + Burglary,
-             data = crime_cig_2015, family = binomial)
-
-model7 = glm(Marijuana ~ Gender + Age + Race + Employment + Theft, 
-             data = crime_mar_2010, family = binomial)
-model8 = glm(Marijuana ~ Gender + Age + Race + Employment + Theft,
-             data = crime_mar_2015, family = binomial)
-
-model9 = glm(Marijuana ~ Gender + Age + Race + Employment + Arson,
-             data = crime_mar_2010, family = binomial)
-model10 = glm(Marijuana ~ Gender + Age + Race + Employment + Arson,
-             data = crime_mar_2015, family = binomial)
-
-model11 = glm(Marijuana ~ Gender + Age + Race + Employment + Burglary,
-             data = crime_mar_2010, family = binomial)
-model12 = glm(Marijuana ~ Gender + Age + Race + Employment + Burglary,
-             data = crime_mar_2015, family = binomial)
-```
-
-Balances:
-```{r, eval=FALSE}
-match_table = rbind(xBalance(Cigarette ~ Gender + Age + Race + Employment + Theft,
-                             data = crime_cig_2010, report = "chisquare.test")$overall,
-                    xBalance(Cigarette ~ Gender + Age + Race + Employment + Theft,
-                             data = crime_cig_2015, report = "chisquare.test")$overall,
-                    xBalance(Cigarette ~ Gender + Age + Race + Employment + Arson,
-                             data = crime_cig_2010, report = "chisquare.test")$overall,
-                    xBalance(Cigarette ~ Gender + Age + Race + Employment + Arson,
-                             data = crime_cig_2015, report = "chisquare.test")$overall,
-                    xBalance(Cigarette ~ Gender + Age + Race + Employment + SexualOffense,
-                             data = crime_cig_2010, report = "chisquare.test")$overall,
-                    xBalance(Cigarette ~ Gender + Age + Race + Employment + SexualOffense,
-                             data = crime_cig_2015, report = "chisquare.test")$overall,
-                    xBalance(Marijuana ~ Gender + Age + Race + Employment + Theft,
-                             data = crime_mar_2010, report = "chisquare.test")$overall,
-                    xBalance(Marijuana ~ Gender + Age + Race + Employment + Theft,
-                             data = crime_mar_2015, report = "chisquare.test")$overall,
-                    xBalance(Marijuana ~ Gender + Age + Race + Employment + Arson,
-                             data = crime_mar_2010, report = "chisquare.test")$overall,
-                    xBalance(Marijuana ~ Gender + Age + Race + Employment + Arson,
-                             data = crime_mar_2015, report = "chisquare.test")$overall,
-                    xBalance(Marijuana ~ Gender + Age + Race + Employment + SexualOffense,
-                             data = crime_mar_2010, report = "chisquare.test")$overall,
-                    xBalance(Marijuana ~ Gender + Age + Race + Employment + SexualOffense,
-                             data = crime_mar_2015, report = "chisquare.test")$overall)
-rownames(match_table) = c("Cigarette/Theft/2010", "Cigarette/Theft/2015",
-                          "Cigarette/Arson/2010", "Cigarette/Arson/2015",
-                          "Cigarette/Sexual Offense/2010", "Cigarette/Sexual Offense/2015",
-                          "Marijuana/Theft/2010", "Marijuana/Theft/2015",
-                          "Marijuana/Arson/2010", "Marijuana/Arson/2015",
-                          "Marijuana/Sexual Offense/2010", "Marijuana/Sexual Offense/2015")
-match_table
-#print(xtable(match_table, type = "latex"), file = "match_crime.tex")
-```
-
-Now do matching.
-```{r}
-a1 = match_on(model1, data = crime_cig_2010)
-a2 = match_on(model2, data = crime_cig_2015)
-a3 = match_on(model3, data = crime_cig_2010)
-a4 = match_on(model4, data = crime_cig_2015)
-a5 = match_on(model5, data = crime_cig_2010)
-a6 = match_on(model6, data = crime_cig_2015)
-a7 = match_on(model7, data = crime_mar_2010)
-a8 = match_on(model8, data = crime_mar_2015)
-a9 = match_on(model9, data = crime_mar_2010)
-a10 = match_on(model10, data = crime_mar_2015)
-a11 = match_on(model11, data = crime_mar_2010)
-a12 = match_on(model12, data = crime_mar_2015)
-
-b1 = pairmatch(a1 + caliper(a1, 3), data = crime_cig_2010)
-b2 = pairmatch(a2 + caliper(a2, 3), data = crime_cig_2015)
-b3 = pairmatch(a3 + caliper(a3, 3), data = crime_cig_2010)
-b4 = pairmatch(a4 + caliper(a4, 3), data = crime_cig_2015)
-b5 = pairmatch(a5 + caliper(a5, 3), data = crime_cig_2010)
-b6 = pairmatch(a6 + caliper(a6, 3), data = crime_cig_2015)
-b7 = pairmatch(a7 + caliper(a7, 3), data = crime_mar_2010)
-b8 = pairmatch(a8 + caliper(a8, 3), data = crime_mar_2015)
-b9 = pairmatch(a9 + caliper(a9, 3), data = crime_mar_2010)
-b10 = pairmatch(a10 + caliper(a10, 3), data = crime_mar_2015)
-b11 = pairmatch(a11 + caliper(a11, 3), data = crime_mar_2010)
-b12 = pairmatch(a12 + caliper(a12, 3), data = crime_mar_2015)
-
-c1 = lm(Theft ~ Age + Gender + Race + Employment + Cigarette, 
-        data = na.omit(crime_cig_2010[b1,]))
-c2 = lm(Theft ~ Age + Gender + Race + Employment + Cigarette,
-        data = na.omit(crime_cig_2015[b2,]))
-c3 = lm(Arson ~ Age + Gender + Race + Employment + Cigarette,
-        data = na.omit(crime_cig_2010[b3,]))
-c4 = lm(Arson ~ Age + Gender + Race + Employment + Cigarette,
-        data = na.omit(crime_cig_2015[b4,]))
-c5 = lm(Burglary ~ Age + Gender + Race + Employment + Cigarette,
-        data = na.omit(crime_cig_2010[b5,]))
-c6 = lm(Burglary ~ Age + Gender + Race + Employment + Cigarette,
-        data = na.omit(crime_cig_2015[b6,]))
-c7 = lm(Theft ~ Age + Gender + Race + Employment + Marijuana, 
-        data = na.omit(crime_mar_2010[b7,]))
-c8 = lm(Theft ~ Age + Gender + Race + Employment + Marijuana,
-        data = na.omit(crime_mar_2015[b8,]))
-c9 = lm(Arson ~ Age + Gender + Race + Employment + Marijuana,
-        data = na.omit(crime_mar_2010[b9,]))
-c10 = lm(Arson ~ Age + Gender + Race + Employment + Marijuana,
-        data = na.omit(crime_mar_2015[b10,]))
-c11 = lm(Burglary ~ Age + Gender + Race + Employment + Marijuana,
-        data = na.omit(crime_mar_2010[b11,]))
-c12 = lm(Burglary ~ Age + Gender + Race + Employment + Marijuana,
-        data = na.omit(crime_mar_2015[b12,]))
-
-crime_coef = round(c(tail(summary(c1)$coef,1)[1], 
-                  tail(summary(c2)$coef,1)[1],
-                  tail(summary(c3)$coef,1)[1],
-                  tail(summary(c4)$coef,1)[1],
-                  tail(summary(c5)$coef,1)[1],
-                  tail(summary(c6)$coef,1)[1],
-                  tail(summary(c7)$coef,1)[1],
-                  tail(summary(c8)$coef,1)[1],
-                  tail(summary(c9)$coef,1)[1],
-                  tail(summary(c10)$coef,1)[1],
-                  tail(summary(c11)$coef,1)[1],
-                  tail(summary(c12)$coef,1)[1]), 3)
-
-crime_pval = round(c(tail(summary(c1)$coef,1)[4], 
-                  tail(summary(c2)$coef,1)[4],
-                  tail(summary(c3)$coef,1)[4],
-                  tail(summary(c4)$coef,1)[4],
-                  tail(summary(c5)$coef,1)[4],
-                  tail(summary(c6)$coef,1)[4],
-                  tail(summary(c7)$coef,1)[4],
-                  tail(summary(c8)$coef,1)[4],
-                  tail(summary(c9)$coef,1)[4],
-                  tail(summary(c10)$coef,1)[4],
-                  tail(summary(c11)$coef,1)[4],
-                  tail(summary(c12)$coef,1)[4]), 3)
-
-model_name = c("Cigarette/Theft/2010", "Cigarette/Theft/2015",
-              "Cigarette/Arson/2010", "Cigarette/Arson/2015",
-              "Cigarette/Burglary/2010", "Cigarette/Burglary/2015",
-              "Marijuana/Theft/2010", "Marijuana/Theft/2015",
-              "Marijuana/Arson/2010", "Marijuana/Arson/2015",
-              "Marijuana/Burglary/2010", "Marijuana/Burglary/2015")
-
-matched_num = c(stratumStructure(b1)[2],
-                stratumStructure(b2)[2],
-                stratumStructure(b3)[2],
-                stratumStructure(b4)[2],
-                stratumStructure(b5)[2],
-                stratumStructure(b6)[2],
-                stratumStructure(b7)[2],
-                stratumStructure(b8)[2],
-                stratumStructure(b9)[2],
-                stratumStructure(b10)[2],
-                stratumStructure(b11)[2],
-                stratumStructure(b12)[2])
-unmatched_num = c(stratumStructure(b1)[1],
-                  stratumStructure(b2)[1],
-                  stratumStructure(b3)[1],
-                  stratumStructure(b4)[1],
-                  stratumStructure(b5)[1],
-                  stratumStructure(b6)[1],
-                  stratumStructure(b7)[1],
-                  stratumStructure(b8)[1],
-                  stratumStructure(b9)[1],
-                  stratumStructure(b10)[1],
-                  stratumStructure(b11)[1],
-                  stratumStructure(b12)[1])
-
-crime_df = data.frame("Model" = model_name, 
-                      "Coefficient of Crime" = crime_coef,
-                      "Number of Matches" = matched_num, 
-                      "Number of Nonmatches" = unmatched_num,
-                      "p value" = crime_pval)
-crime_df
-print(xtable(crime_df, type = "latex", caption = "Table 2: Regression of Crime Variables"), 
-      file = "crime_coefs.tex")
-```
-
-Plot propensity score distributions
-```{r}
-x1 = na.omit(crime_cig_2010) %>% 
-  mutate(prediction = predict(model1,crime_cig_2010)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Cigarette, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-  
-x2 = na.omit(crime_cig_2010[b1,]) %>% 
-  mutate(prediction = predict(model1,na.omit(crime_cig_2010[b1,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Cigarette, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-
-x3 = na.omit(crime_cig_2015) %>% 
-  mutate(prediction = predict(model2, crime_cig_2015)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Cigarette, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-  
-x4 = na.omit(crime_cig_2015[b2,]) %>% 
-  mutate(prediction = predict(model1,na.omit(crime_cig_2015[b2,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Cigarette, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-z1 = grid_arrange_shared_legend(x1, x2, x3, x4, ncol = 2, nrow = 2)
-ggsave(filename = "PSD-Crime-Cig.png", z1, height = 7, width = 7, units = "in")
-```
-
-```{r}
-x5 = na.omit(crime_mar_2010) %>% 
-  mutate(prediction = predict(model7,crime_mar_2010)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Marijuana, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-  
-x5 = na.omit(crime_mar_2010[b7,]) %>% 
-  mutate(prediction = predict(model7,na.omit(crime_mar_2010[b7,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Marijuana, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-
-x7 = na.omit(crime_mar_2015) %>% 
-  mutate(prediction = predict(model8, crime_mar_2015)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Marijuana, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-  
-x8 = na.omit(crime_mar_2015[b8,]) %>% 
-  mutate(prediction = predict(model8,na.omit(crime_mar_2015[b8,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Marijuana, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-z2 = grid_arrange_shared_legend(x5, x6, x7, x8, ncol = 2, nrow = 2)
-ggsave(filename = "PSD-Crime-Mar.png", z2, height = 7, width = 7, units = "in")
-```
-
-For emotional stress 
-
-Models
-```{r}
-model1 = glm(Cigarette ~ Gender + Age + NervousWorst, 
-             data = mh_cig_2010, family = binomial)
-model2 = glm(Cigarette ~ Gender + Age + NervousWorst,
-             data = mh_cig_2015, family = binomial)
-
-model3 = glm(Cigarette ~ Gender + Age + HopelessWorst,
-             data = mh_cig_2010, family = binomial)
-model4 = glm(Cigarette ~ Gender + Age + HopelessWorst,
-             data = mh_cig_2015, family = binomial)
-
-model5 = glm(Cigarette ~ Gender + Age + WorthlessWorst,
-             data = mh_cig_2010, family = binomial)
-model6 = glm(Cigarette ~ Gender + Age + WorthlessWorst,
-             data = mh_cig_2015, family = binomial)
-
-model7 = glm(Marijuana ~ Gender + Age + NervousWorst, 
-             data = mh_mar_2010, family = binomial)
-model8 = glm(Marijuana ~ Gender + Age + NervousWorst,
-             data = mh_mar_2015, family = binomial)
-
-model9 = glm(Marijuana ~ Gender + Age + HopelessWorst,
-             data = mh_mar_2010, family = binomial)
-model10 = glm(Marijuana ~ Gender + Age + HopelessWorst,
-             data = mh_mar_2015, family = binomial)
-
-model11 = glm(Marijuana ~ Gender + Age + WorthlessWorst,
-             data = mh_mar_2010, family = binomial)
-model12 = glm(Marijuana ~ Gender + Age + Race + Employment + WorthlessWorst,
-             data = mh_mar_2015, family = binomial)
-```
-
-
-Now do matching.
-```{r}
-a1 = match_on(model1, data = mh_cig_2010)
-a2 = match_on(model2, data = mh_cig_2015)
-a3 = match_on(model3, data = mh_cig_2010)
-a4 = match_on(model4, data = mh_cig_2015)
-a5 = match_on(model5, data = mh_cig_2010)
-a6 = match_on(model6, data = mh_cig_2015)
-a7 = match_on(model7, data = mh_mar_2010)
-a8 = match_on(model8, data = mh_mar_2015)
-a9 = match_on(model9, data = mh_mar_2010)
-a10 = match_on(model10, data = mh_mar_2015)
-a11 = match_on(model11, data = mh_mar_2010)
-a12 = match_on(model12, data = mh_mar_2015)
-
-b1 = pairmatch(a1 + caliper(a1, 3), data = mh_cig_2010)
-b2 = pairmatch(a2 + caliper(a2, 3), data = mh_cig_2015)
-b3 = pairmatch(a3 + caliper(a3, 3), data = mh_cig_2010)
-b4 = pairmatch(a4 + caliper(a4, 3), data = mh_cig_2015)
-b5 = pairmatch(a5 + caliper(a5, 3), data = mh_cig_2010)
-b6 = pairmatch(a6 + caliper(a6, 3), data = mh_cig_2015)
-b7 = pairmatch(a7 + caliper(a7, 3), data = mh_mar_2010)
-b8 = pairmatch(a8 + caliper(a8, 3), data = mh_mar_2015)
-b9 = pairmatch(a9 + caliper(a9, 3), data = mh_mar_2010)
-b10 = pairmatch(a10 + caliper(a10, 3), data = mh_mar_2015)
-b11 = pairmatch(a11 + caliper(a11, 3), data = mh_mar_2010)
-b12 = pairmatch(a12 + caliper(a12, 3), data = mh_mar_2015)
-
-c1 = lm(NervousWorst ~ Gender + Age + Cigarette, 
-        data = na.omit(mh_cig_2010[b1,]))
-c2 = lm(NervousWorst ~ Gender + Age + Cigarette,
-        data = na.omit(mh_cig_2015[b2,]))
-c3 = lm(HopelessWorst ~ Gender + Age + Cigarette,
-        data = na.omit(mh_cig_2010[b3,]))
-c4 = lm(HopelessWorst ~ Gender + Age + Cigarette,
-        data = na.omit(mh_cig_2015[b4,]))
-c5 = lm(WorthlessWorst ~ Gender + Age + Cigarette,
-        data = na.omit(mh_cig_2010[b5,]))
-c6 = lm(WorthlessWorst ~ Gender + Age + Cigarette,
-        data = na.omit(mh_cig_2015[b6,]))
-c7 = lm(NervousWorst ~ Gender + Age + Marijuana, 
-        data = na.omit(mh_mar_2010[b7,]))
-c8 = lm(NervousWorst ~ Gender + Age + Marijuana,
-        data = na.omit(mh_mar_2015[b8,]))
-c9 = lm(HopelessWorst ~ Gender + Age + Marijuana,
-        data = na.omit(mh_mar_2010[b9,]))
-c10 = lm(HopelessWorst ~ Gender + Age + Marijuana,
-        data = na.omit(mh_mar_2015[b10,]))
-c11 = lm(WorthlessWorst ~ Gender + Age + Marijuana,
-        data = na.omit(mh_mar_2010[b11,]))
-c12 = lm(WorthlessWorst ~ Gender + Age + Marijuana,
-        data = na.omit(mh_mar_2015[b12,]))
-
-mh_coef = round(c(tail(summary(c1)$coef,1)[1], 
-                  tail(summary(c2)$coef,1)[1],
-                  tail(summary(c3)$coef,1)[1],
-                  tail(summary(c4)$coef,1)[1],
-                  tail(summary(c5)$coef,1)[1],
-                  tail(summary(c6)$coef,1)[1],
-                  tail(summary(c7)$coef,1)[1],
-                  tail(summary(c8)$coef,1)[1],
-                  tail(summary(c9)$coef,1)[1],
-                  tail(summary(c10)$coef,1)[1],
-                  tail(summary(c11)$coef,1)[1],
-                  tail(summary(c12)$coef,1)[1]), 3)
-
-mh_pval = round(c(tail(summary(c1)$coef,1)[4], 
-                  tail(summary(c2)$coef,1)[4],
-                  tail(summary(c3)$coef,1)[4],
-                  tail(summary(c4)$coef,1)[4],
-                  tail(summary(c5)$coef,1)[4],
-                  tail(summary(c6)$coef,1)[4],
-                  tail(summary(c7)$coef,1)[4],
-                  tail(summary(c8)$coef,1)[4],
-                  tail(summary(c9)$coef,1)[4],
-                  tail(summary(c10)$coef,1)[4],
-                  tail(summary(c11)$coef,1)[4],
-                  tail(summary(c12)$coef,1)[4]), 3)
-
-model_name = c("Cigarette/Nervousness/2010", "Cigarette/Nervousness/2015",
-              "Cigarette/Hopelessness/2010", "Cigarette/Hopelessness/2015",
-              "Cigarette/Worthlessness/2010", "Cigarette/Worthlessness/2015",
-              "Marijuana/Nervousness/2010", "Marijuana/Nervousness/2015",
-              "Marijuana/Hopelessness/2010", "Marijuana/Hopelessness/2015",
-              "Marijuana/Worthlessness/2010", "Marijuana/Worthlessness/2015")
-
-matched_num = c(stratumStructure(b1)[2],
-                stratumStructure(b2)[2],
-                stratumStructure(b3)[2],
-                stratumStructure(b4)[2],
-                stratumStructure(b5)[2],
-                stratumStructure(b6)[2],
-                stratumStructure(b7)[2],
-                stratumStructure(b8)[2],
-                stratumStructure(b9)[2],
-                stratumStructure(b10)[2],
-                stratumStructure(b11)[2],
-                stratumStructure(b12)[2])
-unmatched_num = c(stratumStructure(b1)[1],
-                  stratumStructure(b2)[1],
-                  stratumStructure(b3)[1],
-                  stratumStructure(b4)[1],
-                  stratumStructure(b5)[1],
-                  stratumStructure(b6)[1],
-                  stratumStructure(b7)[1],
-                  stratumStructure(b8)[1],
-                  stratumStructure(b9)[1],
-                  stratumStructure(b10)[1],
-                  stratumStructure(b11)[1],
-                  stratumStructure(b12)[1])
-
-mh_df = data.frame("Model" = model_name, 
-                      "Coefficient of Emotional Stress" = mh_coef,
-                      "Number of Matches" = matched_num, 
-                      "Number of Nonmatches" = unmatched_num,
-                      "p value" = mh_pval)
-mh_df
-
-kable(mh_df)
-print(xtable(mh_df, type = "latex"), file = "mh_coefs.tex")
-```
-
-Plot propensity score distributions.
-
-```{r}
-y1 = na.omit(mh_cig_2010) %>% 
-  mutate(prediction = predict(model1,mh_cig_2010)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Cigarette, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-  
-y2 = na.omit(mh_cig_2010[b1,]) %>% 
-  mutate(prediction = predict(model1,na.omit(mh_cig_2010[b1,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Cigarette, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-
-y3 = na.omit(mh_cig_2015) %>% 
-  mutate(prediction = predict(model2, mh_cig_2015)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Cigarette, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-  
-y4 = na.omit(mh_cig_2015[b2,]) %>% 
-  mutate(prediction = predict(model1,na.omit(mh_cig_2015[b2,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Cigarette, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-z3 = grid_arrange_shared_legend(y1, y2, y3, y4, ncol = 2, nrow = 2)
-ggsave(filename = "PSD-MH-Cig.png", z3, height = 7, width = 7, units = "in")
-```
-
-```{r}
-y5 = na.omit(mh_mar_2010) %>% 
-  mutate(prediction = predict(model7,mh_mar_2010)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Marijuana, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-  
-y6 = na.omit(mh_mar_2010[b7,]) %>% 
-  mutate(prediction = predict(model7,na.omit(mh_mar_2010[b7,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Marijuana, Year: 2010") + 
-  guides(fill = NULL) + theme_minimal()
-
-y7 = na.omit(mh_mar_2015) %>% 
-  mutate(prediction = predict(model8, mh_mar_2015)) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - Before Matching", subtitle = "Drug: Marijuana, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-  
-y8 = na.omit(mh_mar_2015[b8,]) %>% 
-  mutate(prediction = predict(model8,na.omit(mh_mar_2015[b8,]))) %>%
-  ggplot(aes(x = prediction, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) +
-  scale_fill_brewer(palette = "Reds", label = c("Treatment", "Control"), name = "") + 
-  labs(title = "PSD - After Matching", subtitle = "Drug: Marijuana, Year: 2015") + 
-  guides(fill = NULL) + theme_minimal()
-z4 = grid_arrange_shared_legend(y5, y6, y7, y8, ncol = 2, nrow = 2)
-ggsave(filename = "PSD-MH-Mar.png", z4, height = 7, width = 7, units = "in")
-```
-
-
-
-
-
-
-
-Look at each drug independently. Three crimes will be investigated: theft, arson, sexual offense. 
-
-(a) Marijuana
-Pre-set up
-```{r}
-crimes = c("Theft", "Arson", "SexualOffense")
-df2010 = na.omit(drug_crime_spec("Marijuana") %>% filter(Marijuana %in% c("Yes", "No"))) %>% filter(year == 2010)
-df2015 = na.omit(drug_crime_spec("Marijuana") %>% filter(Marijuana %in% c("Yes", "No"))) %>% filter(year == 2015)
-df2010$Marijuana = ifelse(df2010$Marijuana == "Yes", 1, 0)
-df2010[crimes] = df2010[crimes] %>% mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-df2015$Marijuana = ifelse(df2015$Marijuana == "Yes", 1, 0)
-df2015[crimes] = df2015[crimes] %>% mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-p_vals2010 = c()
-p_vals2015 = c()
-```
-
-
-Plot the propensity scores density. 
-```{r}
-model1 = glm(Marijuana ~ Gender + Age + Race + Employment + Theft,
-             data = df2010, family = binomial)
-model2 = glm(Marijuana ~ Gender + Age + Race + Employment + Theft,
-             data = df2015, family = binomial)
-df2010$pred = predict(model1, newdata = df2010)
-df2015$pred = predict(model2, newdata = df2015)
-
-g1 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Crime: Theft") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g2 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Crime: Theft") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-
-model3 = glm(Marijuana ~ Gender + Age + Race + Employment + Arson,
-             data = df2010, family = binomial)
-model4 = glm(Marijuana ~ Gender + Age + Race + Employment + Arson,
-             data = df2015, family = binomial)
-df2010$pred = predict(model3, newdata = df2010)
-df2015$pred = predict(model4, newdata = df2015)
-
-g3 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Crime: Arson") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g4 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Crime: Arson") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-
-model5 = glm(Marijuana ~ Gender + Age + Race + Employment + SexualOffense,
-             data = df2010, family = binomial)
-model6 = glm(Marijuana ~ Gender + Age + Race + Employment + SexualOffense,
-             data = df2015, family = binomial)
-df2010$pred = predict(model5, newdata = df2010)
-df2015$pred = predict(model6, newdata = df2015)
-
-g5 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Crime: Sexual Offense") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g6 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Crime: Sexual Offense") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-
-grid_arrange_shared_legend(g1, g2, g3, g4, g5, g6, nrow = 3, ncol = 2)
-
-g1
-```
-
-
-(i) Theft
-
-First check if the two groups are balanced in both 2010 and 2015.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + Theft, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + Theft, data = df2015, report = "chisquare.test")
-```
-
-Match directly on the propensity score.
-
-```{r}
-pst1_dict = match_on(model1, data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model2, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-```
-
-(ii) Arson
-
-Check if the two groups are balanced in both 2010 and 2015.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + Arson, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + Arson, data = df2015, report = "chisquare.test")
-```
-
-At a $p$-value less than the significance level of $\alpha = 0.05$, it is clear that at least one of the variables in the model is creating an imbalance between the control and treatment group. 
-
-Match the data.
-```{r}
-pst1_dict = match_on(model3, data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model4, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model3)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model4)$balance$overall$p.value)
-```
-
-
-(iii) Sexual Offense
-
-First check if the two groups are balanced in both 2010 and 2015.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + SexualOffense, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + SexualOffense, data = df2015, report = "chisquare.test")
-```
-
-At a $p$-value less than the significance level of $\alpha = 0.05$, it is clear that at least one of the variables in the model is creating an imbalance between the control and treatment group. 
-
-```{r}
-pst1_dict = match_on(model5, data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model6, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model5)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model6)$balance$overall$p.value)
-```
-
-
-```{r}
-round(data.frame("p value in 2010" = p_vals2010,
-                 "p value in 2015" = p_vals2015), 6)
-```
-
-(b) LSD
-Pre-set up
-```{r}
-crimes = c("Theft", "Arson", "SexualOffense")
-df2010 = na.omit(drug_crime_spec("Cigarette") %>% filter(Cigarette %in% c("Yes", "No"))) %>% filter(year == 2010)
-df2015 = na.omit(drug_crime_spec("Cigarette") %>% filter(Cigarette %in% c("Yes", "No"))) %>% filter(year == 2015)
-df2010$Cigarette = ifelse(df2010$Cigarette == "Yes", 1, 0)
-df2010[crimes] = df2010[crimes] %>% mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-df2015$Cigarette = ifelse(df2015$Cigarette == "Yes", 1, 0)
-df2015[crimes] = df2015[crimes] %>% mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
-p_vals2010 = c()
-p_vals2015 = c()
-```
-
-
-Plot the propensity scores density. 
-```{r}
-model1 = glm(Cigarette ~ Gender + Age + Race + Employment + Theft,
-             data = df2010, family = binomial)
-model2 = glm(Cigarette ~ Gender + Age + Race + Employment + Theft,
-             data = df2015, family = binomial)
-df2010$pred = predict(model1, newdata = df2010)
-df2015$pred = predict(model2, newdata = df2015)
-
-g1 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Crime: Theft") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g2 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Crime: Theft") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-
-model3 = glm(Cigarette ~ Gender + Age + Race + Employment + Arson,
-             data = df2010, family = binomial)
-model4 = glm(Cigarette ~ Gender + Age + Race + Employment + Arson,
-             data = df2015, family = binomial)
-df2010$pred = predict(model3, newdata = df2010)
-df2015$pred = predict(model4, newdata = df2015)
-
-g3 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Crime: Arson") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g4 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Crime: Arson") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-
-model5 = glm(Cigarette ~ Gender + Age + Race + Employment + SexualOffense,
-             data = df2010, family = binomial)
-model6 = glm(Cigarette ~ Gender + Age + Race + Employment + SexualOffense,
-             data = df2015, family = binomial)
-df2010$pred = predict(model5, newdata = df2010)
-df2015$pred = predict(model6, newdata = df2015)
-
-g5 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Crime: Sexual Offense") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g6 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Crime: Sexual Offense") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-
-grid_arrange_shared_legend(g1, g2, g3, g4, g5, g6, nrow = 3, ncol = 2)
-```
-
-(i) Theft
-
-First check if the two groups are balanced in both 2010 and 2015.
-```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + Theft, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + Theft, data = df2015, report = "chisquare.test")
-```
-
-Match directly on the propensity score.
-
-```{r}
-pst1_dict = match_on(model1, data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model2, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-(ii) Arson
-
-Check if the two groups are balanced in both 2010 and 2015.
-```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + Arson, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + Arson, data = df2015, report = "chisquare.test")
-```
-
-At a $p$-value less than the significance level of $\alpha = 0.05$, it is clear that at least one of the variables in the model is creating an imbalance between the control and treatment group. 
-
-Match the data.
-```{r}
-pst1_dict = match_on(model3, data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model4, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model3)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model4)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-
-(iii) Sexual Offense
-
-First check if the two groups are balanced in both 2010 and 2015.
-```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + SexualOffense, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + SexualOffense, data = df2015, report = "chisquare.test")
-```
-
-At a $p$-value less than the significance level of $\alpha = 0.05$, it is clear that at least one of the variables in the model is creating an imbalance between the control and treatment group. 
-
-```{r}
-pst1_dict = match_on(model5, data = df2010)
-ps_match2010 = pairmatch(pst1_dict, data = df2010)
-
-pst2_dict = match_on(model6, data = df2015)
-ps_match2015 = pairmatch(pst2_dict, data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model5)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model6)$balance$overall$p.value)
-
-p_vals2015
-```
-
-
-```{r}
-round(data.frame("p value in 2010" = p_vals2010,
-                 "p value in 2015" = p_vals2015), 6)
-```
-
-
-
-
-## Question 2 - How is drug use related to mental health behaviors?
-
-```{r}
-drug_mh_vars = function(dem_df, drug_df, mh_df){
+drug_es_vars = function(dem_df, drug_df, mh_df){
   return(inner_join(dem_df, drug_df, by = "ID") %>% left_join(., mh_df, by="ID"))
 }
 
-drug_mh_spec = function(drug){
-  df1 = drug_mh_vars(dem_2010, drugs_2010 %>% select(ID, drug), mh_2010) %>% mutate(year = 2010)
-  #df2 = drug_crimes_vars(dem_2011, drugs_2011 %>% select(ID, drug), crim_2011) %>% mutate(year = 2011)
-  #df3 = drug_crimes_vars(dem_2012, drugs_2012 %>% select(ID, drug), crim_2012) %>% mutate(year = 2012)
-  #df4 = drug_crimes_vars(dem_2013, drugs_2013 %>% select(ID, drug), crim_2013) %>% mutate(year = 2013)
-  #df5 = drug_crimes_vars(dem_2014, drugs_2014 %>% select(ID, drug), crim_2014) %>% mutate(year = 2014)
-  df6 = drug_mh_vars(dem_2015, drugs_2015 %>% select(ID, drug), mh_2015) %>% mutate(year = 2015)
-  #df7 = drug_crimes_vars(dem_2016, drugs_2016 %>% select(ID, drug), crim_2016) %>% mutate(year = 2016)
-  #df8 = drug_crimes_vars(dem_2017, drugs_2017 %>% select(ID, drug), crim_2017) %>% mutate(year = 2017)
-  df_overall = rbind(df1, df6) %>% subset(select = -ID)
+drug_es_spec = function(drug){
+  df1 = drug_es_vars(dem_2017, drugs_2017 %>% select(ID, drug), es_2017) %>% mutate(year = 2017)
+  df_overall = df1 %>% subset(select = -ID)
   return(df_overall)
 }
-
-colnames(df)
 ```
 
+Create vectors of relevant variables
 ```{r}
-# Join drugs and mh
-df = na.omit(drug_mh_spec("Cigarette") %>% filter(WorstStressedMonth == "Yes"))
-worst_feelings = c("NervousWorst", "HopelessWorst", "RestlessFidgetyWorst", "NoCheersWorst", "EffortWorst", "WorthlessWorst")
-
-df[worst_feelings] = df[worst_feelings] %>% mutate_all(. ~recode(., "None of the time" = 0, "A little of the time" = 1, 
-                                                                 "Some of the time" = 3, "Most of the time" = 4, "All of the time" = 5))
-df$Cigarette = ifelse(df$Cigarette == "Yes", 1, 0)
-df2010 = df %>% filter(year == 2010)
-df2015 = df %>% filter(year == 2015)
-p_vals2010 = c()
-p_vals2015 = c()
-
-
-#df = drug_mh_spec("Cigarette") %>% filter(WorstStressedMonth == "Yes")
-#df$Cigarette = ifelse(df$Cigarette == "Yes", 1, 0)
-#df2010 = df %>% filter(year == 2010)
-#df2015 = df %>% filter(year == 2015)
-#colnames(df)
+crimes = c("Theft", "Arson", "Burglary")
+worst_feelings = c("NervousWorst", "HopelessWorst", "WorthlessWorst")
 ```
 
-First cigarette.
-
-(i) NervousWorst
+Create new table - Crime/Cigarette
 ```{r}
-model1 = glm(Cigarette ~ Gender + Age + Race + Employment + NervousWorst,
-             data = df2010, family = binomial)
-model2 = glm(Cigarette ~ Gender + Age + Race + Employment + NervousWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model1, newdata = df2010)
-df2015$pred = predict(model2, newdata = df2015)
-
-g1 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Feeling: Nervousness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g2 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Feeling: Nervousness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g1, g2)
+crime_cig_2017 = na.omit(drug_crime_spec("Cigarette") %>% 
+                      filter(Cigarette %in% c("Yes", "No")))
+crime_cig_2017$Cigarette = ifelse(crime_cig_2017$Cigarette == "Yes", 1, 0)
+crime_cig_2017[crimes] = crime_cig_2017[crimes] %>% 
+  mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
+crime_cig_2017 = crime_cig_2017 %>% select(Gender, Age, Race, Employment, crimes, Cigarette) %>% 
+  mutate("crimes" = ifelse((Theft == 1) | (Arson == 1) | (Burglary == 1), 1, 0)) %>% subset(select = -c(Theft, Arson, Burglary))
 ```
 
-Check for balance.
+Create new table - Crime/Marijuana
 ```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + NervousWorst, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + NervousWorst, data = df2015, report = "chisquare.test")
+crime_mar_2017 = na.omit(drug_crime_spec("Marijuana") %>%
+                           filter(Marijuana %in% c("Yes", "No")))
+crime_mar_2017$Marijuana = ifelse(crime_mar_2017$Marijuana == "Yes", 1, 0)
+crime_mar_2017[crimes] = crime_mar_2017[crimes] %>% 
+  mutate_all(., ~recode(., `Yes` = 1, `No` = 0))
+crime_mar_2017 = crime_mar_2017 %>% select(Gender, Age, Race, Employment, crimes, Marijuana) %>% 
+  mutate("crimes" = ifelse((Theft == 1) | (Arson == 1) | (Burglary == 1), 1, 0)) %>% subset(select = -c(Theft, Arson, Burglary))
 ```
 
-Good.
-
-Match the data.
+Create new table - Emotional Stress/Cigarette
 ```{r}
-pst1_dict = match_on(model1,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model2, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
+es_cig_2017 = na.omit(drug_es_spec("Cigarette") %>% 
+                      filter(Cigarette %in% c("Yes", "No")))
+es_cig_2017$Cigarette = ifelse(es_cig_2017$Cigarette == "Yes", 1, 0)
+es_cig_2017[worst_feelings] = es_cig_2017[worst_feelings] %>% 
+  mutate_all(. ~recode(., "None of the time" = 0, 
+                       "A little of the time" = 1, "Some of the time" = 3, 
+                       "Most of the time" = 4, "All of the time" = 5))
+es_cig_2017 = es_cig_2017 %>% select(Gender, Age, Race, Employment, worst_feelings, Cigarette) %>% 
+  mutate("feelings" = ifelse((NervousWorst > 2) | (HopelessWorst > 2) | (WorthlessWorst > 2), 1, 0)) %>%  
+  subset(select = -c(NervousWorst, HopelessWorst, WorthlessWorst))
 ```
 
-(ii) HopelessWWorst
+Create new table - Emotional Stress/Marijuana
 ```{r}
-model3 = glm(Cigarette ~ Gender + Age + Race + Employment + HopelessWorst,
-             data = df2010, family = binomial)
-model4 = glm(Cigarette ~ Gender + Age + Race + Employment + HopelessWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model1, newdata = df2010)
-df2015$pred = predict(model2, newdata = df2015)
-
-g3 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Feeling: Hopelessness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g4 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Feeling: Hopelessness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g1, g2)
+es_mar_2017 = na.omit(drug_es_spec("Marijuana") %>%
+                           filter(Marijuana %in% c("Yes", "No")))
+es_mar_2017$Marijuana = ifelse(es_mar_2017$Marijuana == "Yes", 1, 0)
+es_mar_2017[worst_feelings] = es_mar_2017[worst_feelings] %>% 
+  mutate_all(. ~recode(., "None of the time" = 0, 
+                       "A little of the time" = 1, "Some of the time" = 3, 
+                       "Most of the time" = 4, "All of the time" = 5))
+es_mar_2017 = es_mar_2017 %>% select(Gender, Age, Race, Employment, worst_feelings, Marijuana) %>% 
+  mutate("feelings" = ifelse((NervousWorst > 2) | (HopelessWorst > 2) | (WorthlessWorst > 2), 1, 0)) %>% 
+  subset(select = -c(NervousWorst, HopelessWorst, WorthlessWorst))
 ```
 
-Check for balance.
+## Modeling 
+
+### Model 1: Cigarette / Crimes
 ```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + NervousWorst, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + NervousWorst, data = df2015, report = "chisquare.test")
+model1 = glm(Cigarette ~ Gender + Age + Race + Employment + crimes, 
+             data = crime_cig_2017, family = "binomial")
+a1 = match_on(model1, data = crime_cig_2017)
+b1 = pairmatch(a1, data = crime_cig_2017)
+c1 = glm(crimes ~ Age + Gender + Race + Employment + Cigarette, 
+        data = na.omit(crime_cig_2017[b1,]), family = "binomial")
+100 * (exp(as.numeric(tail(summary(c1)$coef[,1], 1))) - 1)
 ```
 
-Good.
-
-Match the data.
+Model 1 Covariates after matching
 ```{r}
-pst1_dict = match_on(model3,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
+m1 = na.omit(crime_cig_2017[b1,]) %>% select(Gender, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Gender, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Gender", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Gender in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-pst2_dict = match_on(model4, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
+m2 = na.omit(crime_cig_2017[b1,]) %>% select(Age, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Age, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Age", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Age in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
+m3 = na.omit(crime_cig_2017[b1,]) %>% select(Race, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Race, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Race", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Race in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-p_vals2010
-p_vals2015
+m4 = na.omit(crime_cig_2017[b1,]) %>% select(Employment, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Employment, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Employment", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Employment in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m_grid = grid_arrange_shared_legend(m1, m2, m3, m4, ncol = 2, nrow = 2)
+ggsave("model1.png", m_grid, height = 7, width = 7, units = "in")
 ```
 
-
-
-(iii) RestlessFidgetWorst
+### Model 2: Marijuana / Crimes
 ```{r}
-model5 = glm(Cigarette ~ Gender + Age + Race + Employment + RestlessFidgetyWorst,
-             data = df2010, family = binomial)
-model6 = glm(Cigarette ~ Gender + Age + Race + Employment + RestlessFidgetyWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model5, newdata = df2010)
-df2015$pred = predict(model6, newdata = df2015)
-
-g5 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Feeling: Restlessness/Fidgety") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g6 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Feeling: Restlessness/Fidgety") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g1, g2)
+model2 = glm(Marijuana ~ Gender + Age + Race + Employment + crimes, 
+             data = crime_mar_2017, family = "binomial")
+a2 = match_on(model2, data = crime_mar_2017)
+b2 = pairmatch(a2, data = crime_mar_2017)
+c2 = glm(crimes ~ Age + Gender + Race + Employment + Marijuana, 
+      data = na.omit(crime_mar_2017[b2,]), family = "binomial")
+100 * (exp(as.numeric(tail(summary(c2)$coef[,1], 1))) - 1)
 ```
 
-Check for balance.
+Model 2 Covariates after Matching
 ```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + RestlessFidgetyWorst, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + RestlessFidgetyWorst, data = df2015, report = "chisquare.test")
+m1 = na.omit(crime_mar_2017[b2,]) %>% select(Gender, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Gender, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Gender", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Gender in 2017") + 
+  scale_fill_manual(name = "Marijuana", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m2 = na.omit(crime_mar_2017[b2,]) %>% select(Age, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Age, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Age", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Age in 2017") + 
+  scale_fill_manual(name = "Marijuana", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m3 = na.omit(crime_mar_2017[b2,]) %>% select(Race, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Race, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Race", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Race in 2017") + 
+  scale_fill_manual(name = "Marijuana", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m4 = na.omit(crime_mar_2017[b2,]) %>% select(Employment, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Employment, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Employment", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Employment in 2017") + 
+  scale_fill_manual(name = "Marijuana", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m_grid = grid_arrange_shared_legend(m1, m2, m3, m4, ncol = 2, nrow = 2)
+ggsave("model2.png", m_grid, height = 7, width = 7, units = "in")
 ```
 
-Good.
-
-Match the data.
+### Model 3: Cigarette / Emotional Stress
 ```{r}
-pst1_dict = match_on(model5,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model6, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
+model3 = glm(Cigarette ~ Gender + Age + Race + Employment + feelings, 
+             data = es_cig_2017, family = "binomial")
+a3 = match_on(model3, data = es_cig_2017)
+b3 = pairmatch(a3, data = es_cig_2017)
+c3 = glm(feelings ~ Age + Gender + Race + Employment + Cigarette, 
+        data = na.omit(es_cig_2017[b3,]), family = "binomial")
+100 * (exp(as.numeric(tail(summary(c3)$coef[,1], 1))) - 1)
 ```
 
-
-(iv) NoCheersWorst
+Model 3 Covariates after Matching
 ```{r}
-model7 = glm(Cigarette ~ Gender + Age + Race + Employment + NoCheersWorst,
-             data = df2010, family = binomial)
-model8 = glm(Cigarette ~ Gender + Age + Race + Employment + NoCheersWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model7, newdata = df2010)
-df2015$pred = predict(model8, newdata = df2015)
+m1 = na.omit(es_cig_2017[b3,]) %>% select(Gender, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Gender, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Gender", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Gender in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-g7 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Feeling: Uncheeriness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g8 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Feeling: Uncheeriness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g7, g8)
+m2 = na.omit(es_cig_2017[b3,]) %>% select(Age, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Age, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Age", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Age in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m3 = na.omit(es_cig_2017[b3,]) %>% select(Race, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Race, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Race", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Race in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m4 = na.omit(es_cig_2017[b3,]) %>% select(Employment, Cigarette) %>% count() %>%
+  mutate("perc" = ifelse(Cigarette == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Employment, y = perc, fill = as.factor(Cigarette))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Employment", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Employment in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m_grid = grid_arrange_shared_legend(m1, m2, m3, m4, ncol = 2, nrow = 2)
+ggsave("model3.png", m_grid, height = 7, width = 7, units = "in")
 ```
 
-Check for balance.
+### Model 4: Marijuana / Emotional Stress
 ```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + NoCheersWorst, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + NoCheersWorst, data = df2015, report = "chisquare.test")
+model4 = glm(Marijuana ~ Gender + Age + Race + Employment + feelings, 
+             data = es_mar_2017, family = "binomial")
+a4 = match_on(model4, data = es_mar_2017)
+b4 = pairmatch(a4, data = es_mar_2017)
+c4 = glm(feelings ~ Gender + Age + Race + Employment + Marijuana, 
+        data = na.omit(es_mar_2017[b4,]), family = "binomial")
+100 * (exp(as.numeric(tail(summary(c4)$coef[,1], 1))) - 1)
 ```
 
-Good.
-
-Match the data.
+Model 4 Covariates after Matching
 ```{r}
-pst1_dict = match_on(model7,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
+m1 = na.omit(es_mar_2017[b4,]) %>% select(Gender, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Gender, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Gender", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Gender in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-pst2_dict = match_on(model8, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
+m2 = na.omit(es_mar_2017[b4,]) %>% select(Age, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Age, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Age", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Age in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
+m3 = na.omit(es_mar_2017[b4,]) %>% select(Race, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Race, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Race", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Race in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
 
-p_vals2010
-p_vals2015
+m4 = na.omit(es_mar_2017[b4,]) %>% select(Employment, Marijuana) %>% count() %>%
+  mutate("perc" = ifelse(Marijuana == 1, freq / sum(freq), -1 * freq / sum(freq))) %>% 
+  ggplot(aes(x = Employment, y = perc, fill = as.factor(Marijuana))) + geom_bar(stat = "identity") + 
+  scale_y_continuous(limits = c(-0.6, 0.6),
+                     breaks = seq(-0.6, 0.6, by = 0.3), 
+                     labels = c(0.6, 0.3, 0, 0.3, 0.6)) + 
+  labs(x = "Employment", y = "percentage", 
+       title = "Percentage Distribution", 
+       subtitle = " by Employment in 2017") + 
+  scale_fill_manual(name = "Cigarette", values = brewer.pal(3, "Set2")) + 
+  coord_flip() + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+m_grid = grid_arrange_shared_legend(m1, m2, m3, m4, ncol = 2, nrow = 2)
+ggsave("model4.png", m_grid, height = 7, width = 7, units = "in")
 ```
 
-
-(v) EffortWorst
+Create summary table for models
 ```{r}
-model9 = glm(Cigarette ~ Gender + Age + Race + Employment + EffortWorst,
-             data = df2010, family = binomial)
-model10 = glm(Cigarette ~ Gender + Age + Race + Employment + EffortWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model9, newdata = df2010)
-df2015$pred = predict(model10, newdata = df2015)
+coefs = round(c(tail(summary(c1)$coef,1)[1], 
+                  tail(summary(c2)$coef,1)[1],
+                  tail(summary(c3)$coef,1)[1],
+                  tail(summary(c4)$coef,1)[1]), 3)
 
-g9 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Feeling: No Effort") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g10 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Feeling: No Effort") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g9, g10)
+pvals = round(c(tail(summary(c1)$coef,1)[4], 
+                  tail(summary(c2)$coef,1)[4],
+                  tail(summary(c3)$coef,1)[4],
+                  tail(summary(c4)$coef,1)[4]), 3)
+
+model_name = c("Cigarette/Crimes", "Marijuana/Crimes",
+               "Cigarette/Stress", "Marijuana/Stress")
+
+matched_num = c(stratumStructure(b1)[2],
+                stratumStructure(b2)[2],
+                stratumStructure(b3)[2],
+                stratumStructure(b4)[2])
+unmatched_num = c(stratumStructure(b1)[1],
+                  stratumStructure(b2)[1],
+                  stratumStructure(b3)[1],
+                  stratumStructure(b4)[1])
+
+model_df = data.frame("Model" = model_name, 
+                      "Coefficient of Crime" = coefs,
+                      "Number of Matches" = matched_num, 
+                      "Number of Nonmatches" = unmatched_num,
+                      "p value" = pvals)
+model_df$Interpretation = 100* (exp(model_df$Coefficient.of.Crime) - 1)
+model_df
+print(xtable(model_df, type = "latex", 
+             caption = "Table 2: Propensity Score Matches and Logistic Regression Model Coefficient"), 
+      file = "coefs.tex")
 ```
-
-Check for balance.
-```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + EffortWorst, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + EffortWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model9,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model10, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-
-(vi) WorthessWorst
-```{r}
-model11 = glm(Cigarette ~ Gender + Age + Race + Employment + WorthlessWorst,
-             data = df2010, family = binomial)
-model12 = glm(Cigarette ~ Gender + Age + Race + Employment + WorthlessWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model11, newdata = df2010)
-df2015$pred = predict(model12, newdata = df2015)
-
-g11 = ggplot(df2010, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2010, Feeling: Worthless") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g12 = ggplot(df2015, aes(x = pred, fill = as.factor(Cigarette))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Cigarette", subtitle = "Year: 2015, Feeling: Worthless") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g11, g12)
-```
-
-Check for balance.
-```{r}
-xBalance(Cigarette ~ Gender + Age + Race + Employment + WorthlessWorst, data = df2010, report = "chisquare.test")
-xBalance(Cigarette ~ Gender + Age + Race + Employment + WorthlessWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model11,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model12, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-```{r}
-round(data.frame("p value in 2010" = p_vals2010,
-                 "p value in 2015" = p_vals2015), 6)
-```
-
-Now marijuana.
-```{r}
-df = na.omit(drug_mh_spec("Marijuana") %>% filter(WorstStressedMonth == "Yes"))
-worst_feelings = c("NervousWorst", "HopelessWorst", "RestlessFidgetyWorst", "NoCheersWorst", "EffortWorst", "WorthlessWorst")
-
-df[worst_feelings] = df[worst_feelings] %>% mutate_all(. ~recode(., "None of the time" = 0, "A little of the time" = 1, 
-                                                                 "Some of the time" = 3, "Most of the time" = 4, "All of the time" = 5))
-df$Marijuana = ifelse(df$Marijuana == "Yes", 1, 0)
-df2010 = df %>% filter(year == 2010)
-df2015 = df %>% filter(year == 2015)
-p_vals2010 = c()
-p_vals2015 = c()
-```
-
-
-(i) NervousWorst
-```{r}
-model1 = glm(Marijuana ~ Gender + Age + Race + Employment + NervousWorst,
-             data = df2010, family = binomial)
-model2 = glm(Marijuana ~ Gender + Age + Race + Employment + NervousWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model1, newdata = df2010)
-df2015$pred = predict(model2, newdata = df2015)
-
-g1 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Feeling: Nervousness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g2 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Feeling: Nervousness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g1, g2)
-```
-
-Check for balance.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + NervousWorst, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + NervousWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model1,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model2, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-(ii) HopelessWWorst
-```{r}
-model3 = glm(Marijuana ~ Gender + Age + Race + Employment + HopelessWorst,
-             data = df2010, family = binomial)
-model4 = glm(Marijuana ~ Gender + Age + Race + Employment + HopelessWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model1, newdata = df2010)
-df2015$pred = predict(model2, newdata = df2015)
-
-g3 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Feeling: Hopelessness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g4 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Feeling: Hopelessness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g3, g4)
-```
-
-Check for balance.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + NervousWorst, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + NervousWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model3,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model4, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-
-
-(iii) RestlessFidgetWorst
-```{r}
-model5 = glm(Marijuana ~ Gender + Age + Race + Employment + RestlessFidgetyWorst,
-             data = df2010, family = binomial)
-model6 = glm(Marijuana ~ Gender + Age + Race + Employment + RestlessFidgetyWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model5, newdata = df2010)
-df2015$pred = predict(model6, newdata = df2015)
-
-g5 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Feeling: Restlessness/Fidgety") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g6 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Feeling: Restlessness/Fidgety") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g5, g6)
-```
-
-Check for balance.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + RestlessFidgetyWorst, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + RestlessFidgetyWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model5,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model6, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-
-(iv) NoCheersWorst
-```{r}
-model7 = glm(Marijuana ~ Gender + Age + Race + Employment + NoCheersWorst,
-             data = df2010, family = binomial)
-model8 = glm(Marijuana ~ Gender + Age + Race + Employment + NoCheersWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model7, newdata = df2010)
-df2015$pred = predict(model8, newdata = df2015)
-
-g7 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Feeling: Uncheeriness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g8 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Feeling: Uncheeriness") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g7, g8)
-```
-
-Check for balance.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + NoCheersWorst, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + NoCheersWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model7,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model8, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-
-(v) EffortWorst
-```{r}
-model9 = glm(Marijuana ~ Gender + Age + Race + Employment + EffortWorst,
-             data = df2010, family = binomial)
-model10 = glm(Marijuana ~ Gender + Age + Race + Employment + EffortWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model9, newdata = df2010)
-df2015$pred = predict(model10, newdata = df2015)
-
-g9 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Feeling: No Effort") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g10 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Feeling: No Effort") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g9, g10)
-```
-
-Check for balance.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + EffortWorst, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + EffortWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model9,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model10, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-
-(vi) WorthessWorst
-```{r}
-model11 = glm(Marijuana ~ Gender + Age + Race + Employment + WorthlessWorst,
-             data = df2010, family = binomial)
-model12 = glm(Marijuana ~ Gender + Age + Race + Employment + WorthlessWorst,
-             data = df2015, family = binomial)
-df2010$pred = predict(model11, newdata = df2010)
-df2015$pred = predict(model12, newdata = df2015)
-
-g11 = ggplot(df2010, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2010, Feeling: Worthless") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-g12 = ggplot(df2015, aes(x = pred, fill = as.factor(Marijuana))) + geom_density(alpha = 0.5) + 
-  scale_fill_brewer(palette = "Reds", label = c("Taken", "Not taken"), name = "") + 
-  labs(title = "Propensity Score Density - Marijuana", subtitle = "Year: 2015, Feeling: Worthless") + 
-  guides(fill = NULL) + 
-  theme_minimal()
-grid.arrange(g11, g12)
-```
-
-Check for balance.
-```{r}
-xBalance(Marijuana ~ Gender + Age + Race + Employment + WorthlessWorst, data = df2010, report = "chisquare.test")
-xBalance(Marijuana ~ Gender + Age + Race + Employment + WorthlessWorst, data = df2015, report = "chisquare.test")
-```
-
-Good.
-
-Match the data.
-```{r}
-pst1_dict = match_on(model11,  data = df2010)
-ps_match2010 = pairmatch(pst1_dict + caliper(pst1_dict, 2), data = df2010)
-
-pst2_dict = match_on(model12, data = df2015)
-ps_match2015 = pairmatch(pst2_dict + caliper(pst2_dict, 2), data = df2015)
-
-p_vals2010 = c(p_vals2010, summary(ps_match2010, model1)$balance$overall$p.value)
-p_vals2015 = c(p_vals2015, summary(ps_match2015, model2)$balance$overall$p.value)
-
-p_vals2010
-p_vals2015
-```
-
-```{r}
-round(data.frame("p value in 2010" = p_vals2010,
-                 "p value in 2015" = p_vals2015), 6)
-```
-
-```{r}
-grid_arrange_shared_legend(g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, nrow = 3, ncol = 4)
-```
-
-## Question 3 - Do people who start taking drugs later in life exhibit greater adult depression than people who start taking drug earlier in life? 
-```{r}
-# Join drugs and dp
-drugs_dp_2010 = inner_join(drugs_2010, dp_2010, by = "ID")
-drugs_dp_2011 = inner_join(drugs_2011, dp_2011, by = "ID")
-drugs_dp_2012 = inner_join(drugs_2012, dp_2012, by = "ID")
-drugs_dp_2013 = inner_join(drugs_2013, dp_2013, by = "ID")
-drugs_dp_2014 = inner_join(drugs_2014, dp_2014, by = "ID")
-drugs_dp_2015 = inner_join(drugs_2015, dp_2015, by = "ID")
-drugs_dp_2016 = inner_join(drugs_2016, dp_2016, by = "ID")
-drugs_dp_2017 = inner_join(drugs_2017, dp_2017, by = "ID")
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-Scratchwork:
-
-Leftover variables from reading in drug data before 2015:
-```{r, eval=FALSE}
-                          # Ever trying pain relievers in broken down into 
-                          # (a) Darvocet, Darvon or Tylenol w/ codeine 
-                          # (b) Percocet, Percodan or Tylox 
-                          # (c) Vicodin, Lortab or Lorcet
-                          DARVTYLC, # Ever used ddtc (1/2/91painreleivers)
-                          PERCTYLX, # Ever used percocet, percodan or tylox (1/2/91painrelievers)
-                          VICOLOR, # Ever used vicodin, lortab or lorcet (1/2/91painrelievers)
-                           
-                          ANLEVER, # Ever used pain relievers nm (1/91 - 
-                                   # Yes/Never used pain relievers)
-                          ANALAGE, # Age when first used pain relievers nonmedically (1-68/991)
-                          ANALREC, # Time since last used pain reliever nonmedically (1/2/3/91)
-                          PRDAYPYR, # Number of days used pain relievers nonmedically in past year
-                                    #(1-365/991/993)
-                           
-                          # Oxycontin is also under pain relievers
-                          OXYCONTN, # Ever used oxycontin nonmedically (1/6/91painrelievers)
-                          OXYCAGE, # Age when first used oxycontin nonmedically (8-60/991oxycontin)
-                          OXYCREC, # Time since last used oxycontin nonmedically (1/2/3/91)
-                          OXDAYPYR, # Number of days used oxycontin nonmedically in past year 
-                                    # (1-360/991/993)
-                           
-                          # Ever trying tranquilizer is broken down into
-                          # (a) Klonopin or Clonazepam
-                          # (b) Xanax, Alprazolam, Ativan or Lorazepam
-                          # (c) Valium or Diazepam
-                          KLONOPIN, # Ever used klonopin or clonazepam (1/2/91tranquilizer)
-                          XNAXATVN, # Ever used xaal (1/2/91tranquilizer)
-                          VALMDIAZ, # Ever used valium or diazepam (1/2/91tranquilizer)
-                         
-                          TRNEVER, # Ever used tranquilizers nonmedically 
-                                   # (1/91 - Yes/Never used tranquilizer)
-                          TRANAGE, # Age when first used tranquilizers nonmedically (1-80/991)
-                          TRANREC, # Time since last used tranquilizers nonmedically (1/2/3/91)
-                          TRDAYPYR, # Number of days used tranquilizers nonmedically in past year
-                                    # (1-365/991/993)
-                         
-                          # Ever trying stimulants is broken down into
-                          # (a) Methamphetamine, Desoxyn or Methedrine
-                          # (b) Diet pills such as Amphetamines
-                          # (c) Ritalin or Methlyphenidate
-                          METHDES, # Ever used mdm (1/2/91stimulants)
-                          DIETPILS, # Ever used diet pills such as amphetamines (1/2/91stimulants)
-                          RITMPHEN, # Ever used ritalin or methlyphenidate (1/2/91stimulants)
-                           
-                          STMEVER, # Ever used stimulants nm (1/91 - Yes/Never used stimulants)
-                          STIMAGE, # Age when first used stimulants nonmedically (1-60/991)
-                          STIMREC, # Time since last used stimulants nonmedically (1/2/3/91)
-                          STDAYPYR, # Number of days used stimulants nonmedically in past year
-                                    # (1-365/991/993)
-```
-
-Leftover variables from reading in drug data after 2015:
-```{r, eval=FALSE}
-                          # Ever trying pain relievers in broken down into 
-                          # (a) Darvocet, Darvon or Tylenol w/ codeine 
-                          # (b) Percocet, Percodan or Tylox 
-                          # (c) Vicodin, Lortab or Lorcet
-                          DARVTYLC, # Ever used ddtc (1/2/91painreleivers)
-                          PERCTYLX, # Ever used percocet, percodan or tylox (1/2/91painrelievers)
-                          VICOLOR, # Ever used vicodin, lortab or lorcet (1/2/91painrelievers)
-                           
-                          ANLEVER, # Ever used pain relievers nm (1/91 - 
-                                   # Yes/Never used pain relievers)
-                          ANALAGE, # Age when first used pain relievers nonmedically (1-68/991)
-                          ANALREC, # Time since last used pain reliever nonmedically (1/2/3/91)
-                          PRDAYPYR, # Number of days used pain relievers nonmedically in past year
-                                    #(1-365/991/993)
-                           
-                          # Oxycontin is also under pain relievers
-                          OXYCONTN, # Ever used oxycontin nonmedically (1/6/91painrelievers)
-                          OXYCAGE, # Age when first used oxycontin nonmedically (8-60/991oxycontin)
-                          OXYCREC, # Time since last used oxycontin nonmedically (1/2/3/91)
-                          OXDAYPYR, # Number of days used oxycontin nonmedically in past year 
-                                    # (1-360/991/993)
-                           
-                           
-                          # Ever trying tranquilizer is broken down into
-                          # (a) Klonopin or Clonazepam
-                          # (b) Xanax, Alprazolam, Ativan or Lorazepam
-                          # (c) Valium or Diazepam
-                          KLONOPIN, # Ever used klonopin or clonazepam (1/2/91tranquilizer)
-                          XNAXATVN, # Ever used xaal (1/2/91tranquilizer)
-                          VALMDIAZ, # Ever used valium or diazepam (1/2/91tranquilizer)
-                         
-                          TRNEVER, # Ever used tranquilizers nonmedically 
-                                   # (1/91 - Yes/Never used tranquilizer)
-                          TRANAGE, # Age when first used tranquilizers nonmedically (1-80/991)
-                          TRANREC, # Time since last used tranquilizers nonmedically (1/2/3/91)
-                          TRDAYPYR, # Number of days used tranquilizers nonmedically in past year
-                                    # (1-365/991/993)
-                         
-                          # Ever trying stimulants is broken down into
-                          # (a) Methamphetamine, Desoxyn or Methedrine
-                          # (b) Diet pills such as Amphetamines
-                          # (c) Ritalin or Methlyphenidate
-                          METHDES, # Ever used mdm (1/2/91stimulants)
-                          DIETPILS, # Ever used diet pills such as amphetamines (1/2/91stimulants)
-                          RITMPHEN, # Ever used ritalin or methlyphenidate (1/2/91stimulants)
-                           
-                          STMEVER, # Ever used stimulants nm (1/91 - Yes/Never used stimulants)
-                          STIMAGE, # Age when first used stimulants nonmedically (1-60/991)
-                          STIMREC, # Time since last used stimulants nonmedically (1/2/3/91)
-                          STDAYPYR, # Number of days used stimulants nonmedically in past year
-                                    # (1-365/991/993)
-
-```
-
-Variables not read for depression:
-(e) Adult Depression - works on all datasets, check codebook
-Coding for numbers: 
-- 1/2 - Yes/No
-- 1/2/3/4h - Less than 1 hr, at least 1 hr but less than 3 hrs, at least 3 hrs but less than 5 hrs, more than 5 hrs 
-- 1/2/3/4s - mild/moderate/severe/very severe
-- 1/2/3/4c - often/sometimes/rarely/never
-- 1-93 - age
-- 0-20/21/22/23/24/25/26/27 - 0-20 lbs, 21-25 lbs, 26-30 lbs, 31-35 lbs, 36-40 lbs, 41-45 lbs, 46-50 lbs, 51 or more lbs
-- 1/2/3/4/5 - not at all, a little, som, a lot, extremely
-- 1-84 - age
-- 1-1000 - number of times
-- 0-10 - no interference, mild/mild/mild, moderate/moderate/moderate, severe/severe/severe, very severe interference
-- 0-365 - number of days
-
-```{r, eval = FALSE}
-function(df){
-  dp_df = df %>% select("ID" = QUESTID2, # ID 
-                        
-                        ADLSI2WK, # Did you ever have a period of time like this that lasted most of the day nearly every day for two weeks or longer (1/2)
-                        ADDPR2WK, # Did you ever have this feeling that lasted most of the day, nearly every day, for two weeks or longer (1/2)
-                        ADWRHRS, # During those times, how long did the feelings usually last (1/2/3/4h)
-                        ADWRDST, # During those times how severe was your emotional distress (1/2/3/4s)
-                        ADWRCHR, # During those times, was your emotional distress so severe that nothing could cheer you up (1/2/3/4c)
-                        ADWRIMP, # During those times, was your emotional distress so severe that you could not carry out your daily activities (1/2/3/4s)
-                        ADDPPROB, # During those times, did you ever have changes in sleep/appetite/energy/ability to concentrate and remember/ feelings of low self-worth (1/2)
-                        ADWRPROB, # Is there one particular time where most of these problems manifested at the same time and stands out in your mind as the worst one you ever had (1/2)
-                        ADWRAGE, # How old were you when that time started (a-b)
-                        ADWRDEPR, # During that time, did you feel sad, empty or depressed most of the day nearly every day (1/2)
-                        ADWRDISC, # During that period of time, did you feel discouraged abouy how things were going in your life most of the day nearly every day (1/2)
-                        ADWRLSIN, # During that period of time, did you lose interest in almost all things like work and hobbies and things you like to do for fun (1/2)
-                        ADWRPLSR, # During that period of time, did you lose the ability to take pleasure in having good things happen to you, like winning something or being praised or complimented (1/2)
-                        ADWRELES, # Did you have a smaller appetite than usual nearly every day during that time (1/2)
-                        ADWREMOR, # Did you have a much larger appetite than usual nearly every day 
-                        ADWRGAIN, # Did you gain weight without trying to during that time (1/2)
-                        ADWRGNL2, # How many pounds did you gain (0-20/21/22/23/24/25/26/27)
-                        ADWRLOSE, # Did you lose weight without trying to (1/2)
-                        ADWRDIET, # Did you lose weight without trying to because you were sick or on a diet (1/2)
-                        ADWRLSL2, # How many pounds did you lose (0-20/21/22/23/24/25/26/27)
-                        ADWRSLEP, # Did you have a lot more trouble than usual falling asleep, staying asleep or waking too early nearly every night during that period of time (1/2)
-                        ADWRSMOR, # Did you sleep a lot more than usual nearly every night (1/2)
-                        ADWRENRG, # Did you feel tired or low in energy nearly every day, even when you had not been working very hard (1/2)
-                        ADWRSLOW, # Did you talk or move more slowly than is normal for you nearly every day (1/2)
-                        ADWRJITT, # Were you so restless or jittery nearly every day that you paced up and down or couldn't sit still (1/2)
-                        ADWRTHOT, # Did your thoughts come much more slowly than usual or seem confused nearly every day (1/2)
-                        ADWRCONC, # Did you have a lot more trouble concentrating than usual nearly every day (1/2)
-                        ADWRDCSN, # Were you unable to make decisions about things you ordinarily have no trouble deciding about (1/2)
-                        ADWRNOGD, # Did you feel that you were not as good as other people nearly every day (1/2)
-                        ADWRWRTH, # Did you feel totally worthless nearly every day (1/2)
-                        ADWRDLOT, # Did you often think a lot about death, either your own, someone else's, or death in general (1/2)
-                        ADWRDBTR, # During that period, did you ever think that it would be better if you were dead (1/2)
-                        ADWRSTHK, # Did you think about committing suicide (1/2)
-                        ADWRSPLN, # Did you make a suicide plan (1/2)
-                        ADWRSATP # Did you make a suicide attempt when problems worsened (1/2)
-  )
-  return(dp_df)
-}
-```
-
-
