@@ -1,0 +1,460 @@
+---
+title: "Final Project Notebook"
+output: html_notebook
+---
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+```
+
+Read in dataset from previous project
+```{r}
+df = read_delim("drugstudy.csv", delim = ',') %>% subset(select = -ID)
+```
+
+Setup individual datasets
+```{r}
+m1 = df %>% select(Gender, Age, Race, Employment, Cigarette, Theft, Burglary, Arson) %>% 
+  mutate("CrimeYesNo" = ifelse((Theft == "Yes") | (Burglary == "Yes") | (Arson == "Yes"), 1, 0)) %>%
+  subset(select = -c(Theft, Burglary, Arson))
+m1 = m1[complete.cases(m1$CrimeYesNo),]
+m1$Cigarette = ifelse(m1$Cigarette == "Yes", 1, 0)
+
+m2 = df %>% select(Gender, Age, Race, Employment, Marijuana, Theft, Burglary, Arson) %>% 
+  mutate("CrimeYesNo" = ifelse((Theft == "Yes") | (Burglary == "Yes") | (Arson == "Yes"), 1, 0)) %>%
+  subset(select = -c(Theft, Burglary, Arson))
+m2 = m2[complete.cases(m2$CrimeYesNo),]
+m2$Marijuana = ifelse(m2$Marijuana == "Yes", 1, 0)
+
+worst_feelings = c("NervousWorst", "HopelessWorst", "WorthlessWorst")
+m3 = df %>% select(Gender, Age, Race, Employment, Cigarette, NervousWorst, HopelessWorst, WorthlessWorst)
+m3[worst_feelings] = m3[worst_feelings] %>% 
+  mutate_all(. ~recode(., "None of the time" = 0, 
+                       "A little of the time" = 1, "Some of the time" = 3, 
+                       "Most of the time" = 4, "All of the time" = 5))
+m3 = m3 %>% 
+  mutate("feelings" = ifelse((NervousWorst > 2) | (HopelessWorst > 2) | (WorthlessWorst > 2), 1, 0),
+         "Cigarette" = ifelse(Cigarette == "Yes", 1, 0)) %>%  
+  subset(select = -c(NervousWorst, HopelessWorst, WorthlessWorst))
+m3 = m3[complete.cases(m3$feelings),]
+
+m4 = df %>% select(Gender, Age, Race, Employment, Marijuana, NervousWorst, HopelessWorst, WorthlessWorst)
+m4[worst_feelings] = m4[worst_feelings] %>% 
+  mutate_all(. ~recode(., "None of the time" = 0, 
+                       "A little of the time" = 1, "Some of the time" = 3, 
+                       "Most of the time" = 4, "All of the time" = 5))
+m4 = m4 %>% 
+  mutate("feelings" = ifelse((NervousWorst > 2) | (HopelessWorst > 2) | (WorthlessWorst > 2), 1, 0),
+         "Marijuana" = ifelse(Marijuana == "Yes", 1, 0)) %>%  
+  subset(select = -c(NervousWorst, HopelessWorst, WorthlessWorst))
+m4 = m4[complete.cases(m4$feelings),]
+```
+
+
+CEM - Coarsened Exact Matching
+```{r}
+library(caret)
+library(cem)
+covs = c("Gender", "Age", "Race", "Employment")
+```
+
+Model 1: Cigarette / Crimes
+```{r}
+imbalance(group=m1$Cigarette, 
+          data= as.data.frame(predict(dummyVars(~ Gender + Age + Race + Employment, m1[covs]), m1[covs])))
+```
+
+```{r}
+m1_vars = as.data.frame(cbind(predict(dummyVars(~ Gender + Age + Race + Employment, m1[covs]), m1[covs]), 
+                              "Cigarette" = m1$Cigarette, "CrimeYesNo" = m1$CrimeYesNo))
+cem_1 = cem(treatment = "Cigarette", data = m1_vars, drop = "CrimeYesNo")
+att_1 = att(cem_1, CrimeYesNo ~ Cigarette, data = m1_vars, model = "logistic")
+summary(att_1)
+
+# Extrapolation
+att_1_extra <- att(cem_1, CrimeYesNo ~ Cigarette, data = m1_vars, model="logistic", extra=TRUE)
+summary(att_1_extra)
+```
+
+Interpretation
+```{r}
+(exp(0.29464) - 1) * 100
+(exp(0.22347) - 1) * 100
+```
+
+```{r}
+plot(att_1, cem_1, m1_vars)
+```
+
+
+Model 2: Marijuana / Crimes
+```{r}
+imbalance(group=m2$Marijuana,
+          data= as.data.frame(predict(dummyVars(~ Gender + Age + Race + Employment, m2[covs]), m2[covs])))
+```
+
+```{r}
+m2_vars = as.data.frame(cbind(predict(dummyVars(~ Gender + Age + Race + Employment, m2[covs]), m2[covs]), 
+                              "Marijuana" = m2$Marijuana, "CrimeYesNo" = m2$CrimeYesNo))
+cem_2 = cem(treatment = "Marijuana", data = m2_vars, drop = "CrimeYesNo")
+att_2 = att(cem_2, CrimeYesNo ~ Marijuana, data = m2_vars, model = "logistic")
+summary(att_2)
+
+# Extrapolation
+att_2_extra <- att(cem_2, CrimeYesNo ~ Marijuana, data = m2_vars, model="logistic", extra=TRUE)
+summary(att_2_extra)
+```
+
+Interpretation
+```{r}
+(exp(0.10874) - 1) * 100
+(exp(0.084459) - 1) * 100
+```
+
+```{r}
+plot(att_2, cem_2, m2_vars)
+```
+
+
+Model 3: Cigarette / Stress
+```{r}
+imbalance(group=m3$Cigarette, 
+          data= as.data.frame(predict(dummyVars(~ Gender + Age + Race + Employment, m3[covs]), m3[covs])))
+```
+
+```{r}
+m3_vars = as.data.frame(cbind(predict(dummyVars(~ Gender + Age + Race + Employment, m3[covs]), m3[covs]), 
+                              "Cigarette" = m3$Cigarette, "feelings" = m3$feelings))
+cem_3 = cem(treatment = "Cigarette", data = m3_vars, drop = "feelings")
+att_3 = att(cem_3, feelings ~ Cigarette, data = m3_vars, model = "logistic")
+summary(att_3)
+
+# Extrapolation
+att_3_extra <- att(cem_3, feelings ~ Cigarette, data = m3_vars, model="logistic", extra=TRUE)
+summary(att_3_extra)
+```
+
+Interpretation
+```{r}
+(exp(0.224117) - 1) * 100
+(exp(0.222468) - 1) * 100
+```
+
+```{r}
+plot(att_3, cem_3, m3_vars)
+```
+
+
+Model 4: Marijuana / Stress
+```{r}
+imbalance(group=m4$Marijuana,
+          data= as.data.frame(predict(dummyVars(~ Gender + Age + Race + Employment, m4[covs]), m4[covs])))
+```
+
+```{r}
+m4_vars = as.data.frame(cbind(predict(dummyVars(~ Gender + Age + Race + Employment, m4[covs]), m4[covs]), 
+                              "Marijuana" = m4$Marijuana, "feelings" = m4$feelings))
+cem_4 = cem(treatment = "Marijuana", data = m4_vars, drop = "feelings")
+att_4 = att(cem_4, feelings ~ Marijuana, data = m4_vars, model = "logistic")
+summary(att_4)
+
+# Extrapolation
+att_4_extra <- att(cem_4, feelings ~ Marijuana, data = m4_vars, model="logistic", extra=TRUE)
+summary(att_4_extra)
+```
+
+Interpretation
+```{r}
+(exp(0.391917) - 1) * 100
+(exp(0.389258) - 1) * 100
+```
+
+```{r}
+plot(att_4, cem_4, m4_vars)
+```
+
+
+Doubly Robust Regression - Bootstrap estimates and then create confidence interval for ATE
+
+Model 1: Cigarette/Crimes
+```{r, warning=FALSE}
+att_1 = c()
+for(i in 1:1000){
+  if(i %% 100 == 0){print(paste("Iteration", i, "complete"))}
+  indices = sample(1:nrow(m1), size = 200, replace = TRUE)
+  temp = m1[indices,]
+  trt = temp$Cigarette
+  y = temp$CrimeYesNo
+  out_mod = glm(CrimeYesNo ~ Cigarette + Gender + Age + Race + Employment, data = temp, family = "binomial")
+  ps_mod = glm(Cigarette ~ Gender + Age + Race + Employment, data = temp, family = "binomial")
+  e_hat = ps_mod$fitted.values
+  dat_1 = transform(temp, Cigarette = 1)
+  dat_0 = transform(temp, Cigarette = 0)
+  y_hat_1 = predict(out_mod, newdata = dat_1, type = "response") 
+  y_hat_0 = predict(out_mod, newdata = dat_0, type = "response")
+  DR_1 = (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+  DR_0 = (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+  att_1 = c(att_1, mean(DR_1) - mean(DR_0))
+}
+
+mean_att = mean(att_1)
+sd_att = sqrt(var(att_1))/sqrt(length(att_1))
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+Model 2: Marijuana/Crimes
+```{r, warning=FALSE}
+att_2 = c()
+for(i in 1:1000){
+  if(i %% 100 == 0){print(paste("Iteration", i, "complete"))}
+  indices = sample(1:nrow(m2), size = 200, replace = TRUE)
+  temp = m2[indices,]
+  trt = temp$Marijuana
+  y = temp$CrimeYesNo
+  out_mod = glm(CrimeYesNo ~ Marijuana + Gender + Age + Race + Employment, data = temp, family = "binomial")
+  ps_mod = glm(Marijuana ~ Gender + Age + Race + Employment, data = temp, family = "binomial")
+  e_hat = ps_mod$fitted.values
+  dat_1 = transform(temp, Marijuana = 1)
+  dat_0 = transform(temp, Marijuana = 0)
+  y_hat_1 = predict(out_mod, newdata = dat_1, type = "response") 
+  y_hat_0 = predict(out_mod, newdata = dat_0, type = "response")
+  DR_1 = (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+  DR_0 = (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+  att_2 = c(att_2, mean(DR_1) - mean(DR_0))
+}
+
+mean_att = mean(att_2)
+sd_att = sqrt(var(att_2))/sqrt(length(att_2))
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+Model 3: Cigarette/Emotional Stress
+```{r, warning=FALSE}
+att_3 = c()
+for(i in 1:1000){
+  if(i %% 100 == 0){print(paste("Iteration", i, "complete"))}
+  indices = sample(1:nrow(m3), size = 200, replace = TRUE)
+  temp = m3[indices,]
+  trt = temp$Cigarette
+  y = temp$feelings
+  out_mod = glm(feelings ~ Cigarette + Gender + Age + Race + Employment, data = temp, family = "binomial")
+  ps_mod = glm(Cigarette ~ Gender + Age + Race + Employment, data = temp, family = "binomial")
+  e_hat = ps_mod$fitted.values
+  dat_1 = transform(temp, Cigarette = 1)
+  dat_0 = transform(temp, Cigarette = 0)
+  y_hat_1 = predict(out_mod, newdata = dat_1, type = "response") 
+  y_hat_0 = predict(out_mod, newdata = dat_0, type = "response")
+  DR_1 = (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+  DR_0 = (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+  att_3 = c(att_3, mean(DR_1) - mean(DR_0))
+}
+
+mean_att = mean(att_3)
+sd_att = sqrt(var(att_3))/sqrt(length(att_3))
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+Model 4: Marijuana/Emotional Stress
+```{r, warning=FALSE}
+att_4 = c()
+for(i in 1:1000){
+  if(i %% 100 == 0){print(paste("Iteration", i, "complete"))}
+  indices = sample(1:nrow(m2), size = 200, replace = TRUE)
+  temp = m4[indices,]
+  trt = temp$Marijuana
+  y = temp$feelings
+  out_mod = glm(feelings ~ Marijuana + Gender + Age + Race + Employment, data = temp, family = "binomial")
+  ps_mod = glm(Marijuana ~ Gender + Age + Race + Employment, data = temp, family = "binomial")
+  e_hat = ps_mod$fitted.values
+  dat_1 = transform(temp, Marijuana = 1)
+  dat_0 = transform(temp, Marijuana = 0)
+  y_hat_1 = predict(out_mod, newdata = dat_1, type = "response") 
+  y_hat_0 = predict(out_mod, newdata = dat_0, type = "response")
+  DR_1 = (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+  DR_0 = (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+  att_4 = c(att_4, mean(DR_1) - mean(DR_0))
+}
+
+mean_att = mean(att_4)
+sd_att = sqrt(var(att_4))/sqrt(length(att_4))
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+
+BART - Bayesian Additive Regression Tree
+
+```{r}
+library(caret)
+library(BayesTree)
+```
+
+Model 1: Cigarette / Crimes
+```{r}
+bart1 = m1
+bart1$Age = as.character(bart1$Age)
+bart1_ohe_vars = predict(dummyVars(~ Gender + Age + Race + Employment, bart1), bart1)
+bart1 = as.data.frame(cbind(bart1_ohe_vars, 
+                            "Cigarette" = bart1$Cigarette, 
+                            "CrimeYesNo" = bart1$CrimeYesNo)) %>%
+  arrange(desc(CrimeYesNo))
+Xtrain = bart1[, !colnames(bart1) %in% "CrimeYesNo"]
+Y = bart1$CrimeYesNo
+xp1 <- xp2 <- bart1[bart1$Cigarette == 1, !colnames(bart1) %in% "CrimeYesNo"]
+xp2$Cigarette = 0
+Xtest = rbind(xp1, xp2)
+model_1 = bart(x.train = Xtrain, y.train = Y, x.test = Xtest)
+nt = ncol(model_1$yhat.test)/2
+tmp = apply(model_1$yhat.test[,1:nt] -
+              model_1$yhat.test[,(nt+1):(2*nt)], 1, mean)
+mean_att = mean(tmp)
+sd_att = sqrt(var(tmp)) / length(tmp)
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+Model 2: Marijuana / Crimes
+```{r}
+bart2 = m2
+bart2$Age = as.character(bart2$Age)
+bart2_ohe_vars = predict(dummyVars(~ Gender + Age + Race + Employment, bart2), bart2)
+bart2 = as.data.frame(cbind(bart2_ohe_vars, 
+                            "Marijuana" = bart2$Marijuana, 
+                            "CrimeYesNo" = bart2$CrimeYesNo)) %>%
+  arrange(desc(CrimeYesNo))
+Xtrain = bart2[, !colnames(bart2) %in% "CrimeYesNo"]
+Y = bart2$CrimeYesNo
+xp1 <- xp2 <- bart2[bart2$Marijuana == 1, !colnames(bart2) %in% "CrimeYesNo"]
+xp2$Marijuana = 0
+Xtest = rbind(xp1, xp2)
+model_2 = bart(x.train = Xtrain, y.train = Y, x.test = Xtest)
+nt = ncol(model_2$yhat.test)/2
+tmp = apply(model_2$yhat.test[,1:nt] -
+              model_2$yhat.test[, (nt+1):(2*nt)], 1, mean)
+mean_att = mean(tmp)
+sd_att = sqrt(var(tmp)) / length(tmp)
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+Model 3: Cigarette / Stress
+```{r}
+bart3 = m3
+bart3$Age = as.character(bart3$Age)
+bart3_ohe_vars = predict(dummyVars(~ Gender + Age + Race + Employment, bart3), bart3)
+bart3 = as.data.frame(cbind(bart3_ohe_vars, 
+                            "Cigarette" = bart3$Cigarette, 
+                            "feelings" = bart3$feelings)) %>%
+  arrange(desc(feelings))
+Xtrain = bart3[, !colnames(bart3) %in% "feelings"]
+Y = bart3$feelings
+xp1 <- xp2 <- bart3[bart3$Cigarette == 1, !colnames(bart3) %in% "feelings"]
+xp2$Cigarette = 0
+Xtest = rbind(xp1, xp2)
+model_3 = bart(x.train = Xtrain, y.train = Y, x.test = Xtest)
+nt = ncol(model_3$yhat.test)/2
+tmp = apply(model_3$yhat.test[,1:nt] -
+              model_3$yhat.test[,(nt+1):(2*nt)], 1, mean)
+mean_att = mean(tmp)
+sd_att = sqrt(var(tmp)) / length(tmp)
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+Model 4: Marijuana / Stress
+```{r}
+bart4 = m4
+bart4$Age = as.character(bart4$Age)
+bart4_ohe_vars = predict(dummyVars(~ Gender + Age + Race + Employment, bart4), bart4)
+bart4 = as.data.frame(cbind(bart4_ohe_vars, 
+                            "Marijuana" = bart4$Marijuana, 
+                            "feelings" = bart4$feelings)) %>%
+  arrange(desc(feelings))
+Xtrain = bart4[, !colnames(bart4) %in% "feelings"]
+Y = bart4$feelings
+xp1 <- xp2 <- bart4[bart4$Marijuana == 1, !colnames(bart4) %in% "feelings"]
+xp2$Marijuana = 0
+Xtest = rbind(xp1, xp2)
+model_4 = bart(x.train = Xtrain, y.train = Y, x.test = Xtest)
+nt = ncol(model_4$yhat.test)/2
+tmp = apply(model_4$yhat.test[,1:nt] -
+              model_4$yhat.test[, (nt+1):(2*nt)], 1, mean)
+mean_att = mean(tmp)
+sd_att = sqrt(var(tmp)) / length(tmp)
+print("Confidence Interval:")
+c(mean_att - 1.96*sd_att, mean_att + 1.96*sd_att)
+```
+
+
+LEFTOVER WORK
+For robust regression: 
+
+Model 1:
+```{r, eval=FALSE}
+trt = m1$Cigarette
+y = m1$CrimeYesNo
+out_mod <- glm(CrimeYesNo ~ Cigarette + Gender + Age + Race + Employment, data = m1, family = "binomial")
+ps_mod <- glm(Cigarette ~ Gender + Age + Race + Employment, data = m1, family = "binomial")
+e_hat <- ps_mod$fitted.values
+dat_1 <- transform(m1, Cigarette = 1)
+dat_0 <- transform(m1, Cigarette = 0)
+y_hat_1 <- predict(out_mod, newdata = dat_1, type = "response") 
+y_hat_0 <- predict(out_mod, newdata = dat_0, type = "response")
+boxplot(y_hat_1, y_hat_0)
+DR_1 <- (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+DR_0 <- (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+paste("Estimated treatment effect (ATE): ",mean(DR_1) - mean(DR_0))
+```
+
+```{r, eval=FALSE}
+trt = m2$Marijuana
+y = m2$CrimeYesNo
+out_mod <- glm(CrimeYesNo ~ Marijuana + Gender + Age + Race + Employment, data = m2, family = "binomial")
+ps_mod <- glm(Marijuana ~ Gender + Age + Race + Employment, data = m2, family = "binomial")
+e_hat <- ps_mod$fitted.values
+dat_1 <- transform(m2, Marijuana = 1)
+dat_0 <- transform(m2, Marijuana = 0)
+y_hat_1 <- predict(out_mod, newdata = dat_1, type = "response") 
+y_hat_0 <- predict(out_mod, newdata = dat_0, type = "response")
+boxplot(y_hat_1, y_hat_0)
+DR_1 <- (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+DR_0 <- (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+paste("Estimated treatment effect (ATE): ",mean(DR_1) - mean(DR_0))
+```
+
+```{r,eval=FALSE}
+trt = m3$Cigarette
+y = m3$feelings
+out_mod <- glm(feelings ~ Cigarette + Gender + Age + Race + Employment, data = m3, family = "binomial")
+ps_mod <- glm(Cigarette ~ Gender + Age + Race + Employment, data = m3, family = "binomial")
+e_hat <- ps_mod$fitted.values
+dat_1 <- transform(m3, Cigarette = 1)
+dat_0 <- transform(m3, Cigarette = 0)
+y_hat_1 <- predict(out_mod, newdata = dat_1, type = "response") 
+y_hat_0 <- predict(out_mod, newdata = dat_0, type = "response")
+boxplot(y_hat_1, y_hat_0)
+DR_1 <- (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+DR_0 <- (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+paste("Estimated treatment effect (ATE): ",mean(DR_1) - mean(DR_0))
+```
+
+```{r,eval=FALSE}
+trt = m4$Marijuana
+y = m4$feelings
+out_mod <- glm(feelings ~ Marijuana + Gender + Age + Race + Employment, data = m4, family = "binomial")
+ps_mod <- glm(Marijuana ~ Gender + Age + Race + Employment, data = m4, family = "binomial")
+e_hat <- ps_mod$fitted.values
+dat_1 <- transform(m4, Marijuana = 1)
+dat_0 <- transform(m4, Marijuana = 0)
+y_hat_1 <- predict(out_mod, newdata = dat_1, type = "response") 
+y_hat_0 <- predict(out_mod, newdata = dat_0, type = "response")
+boxplot(y_hat_1, y_hat_0)
+DR_1 <- (e_hat^-1)*y*trt - (e_hat^-1)*(y_hat_1*(trt - e_hat))
+DR_0 <- (1 - e_hat)^-1*(y*(1 - trt)) + (1 - e_hat)^-1*(y_hat_0*(trt - e_hat))
+paste("Estimated treatment effect (ATE): ",mean(DR_1) - mean(DR_0))
+```
+
